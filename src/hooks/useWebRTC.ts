@@ -9,6 +9,8 @@ interface UseWebRTCParams {
   isInitiator: boolean;
 }
 
+const webrtcDebug = (window as typeof window & { __webrtc_debug__?: Window['__webrtc_debug__'] }).__webrtc_debug__;
+
 export function useWebRTC({ chatRoomId, isInitiator }: UseWebRTCParams) {
   const [isMuted, setIsMuted] = useState(false);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
@@ -51,15 +53,13 @@ export function useWebRTC({ chatRoomId, isInitiator }: UseWebRTCParams) {
         localStream.getAudioTracks().forEach((track) => {
           peer.addTrack(track, localStream);
           console.log('[WEBRTC] Added local track:', track.kind);
-        
+
           // ✅ Send to debug panel
-          if ((window as any).__webrtc_debug__) {
-            (window as any).__webrtc_debug__.setLocalTrackStatus({
-              enabled: track.enabled,
-              muted: track.muted,
-              readyState: track.readyState,
-            });
-          }
+          webrtcDebug?.setLocalTrackStatus({
+            enabled: track.enabled,
+            muted: track.muted,
+            readyState: track.readyState,
+          });
         });
 
         // peer.ontrack = (event) => {
@@ -69,14 +69,12 @@ export function useWebRTC({ chatRoomId, isInitiator }: UseWebRTCParams) {
 
         peer.ontrack = (event) => {
           const [audioTrack] = event.streams[0].getAudioTracks();
-          if ((window as any).__webrtc_debug__) {
-            (window as any).__webrtc_debug__.setRemoteTrackStatus({
-              enabled: audioTrack.enabled,
-              muted: audioTrack.muted,
-              readyState: audioTrack.readyState,
-            });
-          }
-        
+          webrtcDebug?.setRemoteTrackStatus({
+            enabled: audioTrack.enabled,
+            muted: audioTrack.muted,
+            readyState: audioTrack.readyState,
+          });
+
           setRemoteStream(event.streams[0]);
         };
 
@@ -93,10 +91,8 @@ export function useWebRTC({ chatRoomId, isInitiator }: UseWebRTCParams) {
         peer.onicecandidate = (event) => {
           if (event.candidate) {
             const type = event.candidate.candidate.split(' ')[7];
-            if ((window as any).__webrtc_debug__) {
-              (window as any).__webrtc_debug__.pushICE(type);
-            }
-        
+            webrtcDebug?.pushICE(type);
+
             if (partnerId) {
               socket.emit('webrtc-ice-candidate', {
                 to: partnerId,
@@ -105,7 +101,7 @@ export function useWebRTC({ chatRoomId, isInitiator }: UseWebRTCParams) {
             }
           }
         };
-        
+
 
         peer.oniceconnectionstatechange = () => {
           console.log('[ICE] Connection state:', peer.iceConnectionState);

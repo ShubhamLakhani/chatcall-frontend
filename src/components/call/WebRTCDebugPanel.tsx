@@ -1,19 +1,48 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, RefObject } from 'react';
 
-const WebRTCDebugPanel = ({ remoteAudioRef }: { remoteAudioRef: React.RefObject<HTMLAudioElement | null> }) => {
-  const [audioStatus, setAudioStatus] = useState<any>({});
-  const [remoteTrackStatus, setRemoteTrackStatus] = useState<any>({});
-  const [localTrackStatus, setLocalTrackStatus] = useState<any>({});
+type TrackStatus = {
+  enabled: boolean;
+  muted: boolean;
+  readyState: string;
+};
+
+type AudioStatus = {
+  volume: number;
+  muted: boolean;
+  currentTime: number;
+  srcObject: boolean;
+};
+
+declare global {
+  interface Window {
+    __webrtc_debug__?: {
+      setRemoteTrackStatus: (status: TrackStatus) => void;
+      setLocalTrackStatus: (status: TrackStatus) => void;
+      pushICE: (type: string) => void;
+    };
+  }
+}
+
+const WebRTCDebugPanel = ({ remoteAudioRef }: { remoteAudioRef: RefObject<HTMLAudioElement | null> }) => {
+  const [audioStatus, setAudioStatus] = useState<AudioStatus>({
+    volume: 1,
+    muted: false,
+    currentTime: 0,
+    srcObject: false,
+  });
+  const [remoteTrackStatus, setRemoteTrackStatus] = useState<TrackStatus | null>(null);
+  const [localTrackStatus, setLocalTrackStatus] = useState<TrackStatus | null>(null);
   const [iceCandidates, setIceCandidates] = useState<string[]>([]);
 
   useEffect(() => {
     const interval = setInterval(() => {
       if (remoteAudioRef.current) {
+        const audio = remoteAudioRef.current;
         setAudioStatus({
-          volume: remoteAudioRef.current.volume,
-          muted: remoteAudioRef.current.muted,
-          currentTime: remoteAudioRef.current.currentTime,
-          srcObject: !!remoteAudioRef.current.srcObject,
+          volume: audio.volume,
+          muted: audio.muted,
+          currentTime: audio.currentTime,
+          srcObject: Boolean(audio.srcObject),
         });
       }
     }, 1000);
@@ -21,12 +50,13 @@ const WebRTCDebugPanel = ({ remoteAudioRef }: { remoteAudioRef: React.RefObject<
     return () => clearInterval(interval);
   }, [remoteAudioRef]);
 
-  // Make these available globally for your hook to update (bad practice, but helpful for quick debugging)
-  (window as any).__webrtc_debug__ = {
-    setRemoteTrackStatus,
-    setLocalTrackStatus,
-    pushICE: (type: string) => setIceCandidates((prev) => [...prev, type]),
-  };
+  useEffect(() => {
+    window.__webrtc_debug__ = {
+      setRemoteTrackStatus: (status: TrackStatus) => setRemoteTrackStatus(status),
+      setLocalTrackStatus: (status: TrackStatus) => setLocalTrackStatus(status),
+      pushICE: (type: string) => setIceCandidates((prev) => [...prev, type]),
+    };
+  }, []);
 
   return (
     <div style={{ position: 'fixed', bottom: 0, right: 0, padding: 12, background: '#111', color: '#0f0', fontSize: 12, zIndex: 1000 }}>
