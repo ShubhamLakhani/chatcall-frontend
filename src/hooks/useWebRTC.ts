@@ -61,18 +61,14 @@ export function useWebRTC({ chatRoomId, isInitiator }: UseWebRTCParams) {
         localStream.getTracks().forEach((track) => {
           peer.addTrack(track, localStream);
           console.log('[STEP] 4: Added track:', track.kind);
-        });
-
-        localStream.getAudioTracks().forEach((track) => {
-          peer.addTrack(track, localStream);
-          console.log('[WEBRTC] Added local track:', track.kind);
-
-          // ✅ Send to debug panel
-          webrtcDebug?.setLocalTrackStatus({
-            enabled: track.enabled,
-            muted: track.muted,
-            readyState: track.readyState,
-          });
+        
+          if (track.kind === 'audio') {
+            webrtcDebug?.setLocalTrackStatus({
+              enabled: track.enabled,
+              muted: track.muted,
+              readyState: track.readyState,
+            });
+          }
         });
 
         // peer.ontrack = (event) => {
