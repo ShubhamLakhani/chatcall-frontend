@@ -43,25 +43,69 @@ export function useWebRTC({ chatRoomId, isInitiator }: UseWebRTCParams) {
         const peer = new RTCPeerConnection(rtcConfig);
         peerRef.current = peer;
 
-        localStream.getTracks().forEach((track) => {
+        // localStream.getTracks().forEach((track) => {
+        //   peer.addTrack(track, localStream);
+        //   console.log('[WEBRTC] Added local track:', track.kind);
+        // });
+
+        localStream.getAudioTracks().forEach((track) => {
           peer.addTrack(track, localStream);
           console.log('[WEBRTC] Added local track:', track.kind);
+        
+          // ✅ Send to debug panel
+          if ((window as any).__webrtc_debug__) {
+            (window as any).__webrtc_debug__.setLocalTrackStatus({
+              enabled: track.enabled,
+              muted: track.muted,
+              readyState: track.readyState,
+            });
+          }
         });
 
+        // peer.ontrack = (event) => {
+        //   console.log('[TRACK] Remote track received:', event.streams[0]);
+        //   setRemoteStream(event.streams[0]);
+        // };
+
         peer.ontrack = (event) => {
-          console.log('[TRACK] Remote track received:', event.streams[0]);
+          const [audioTrack] = event.streams[0].getAudioTracks();
+          if ((window as any).__webrtc_debug__) {
+            (window as any).__webrtc_debug__.setRemoteTrackStatus({
+              enabled: audioTrack.enabled,
+              muted: audioTrack.muted,
+              readyState: audioTrack.readyState,
+            });
+          }
+        
           setRemoteStream(event.streams[0]);
         };
 
+        // peer.onicecandidate = (event) => {
+        //   if (event.candidate && partnerId) {
+        //     console.log('[ICE] Sending candidate to:', partnerId);
+        //     socket.emit('webrtc-ice-candidate', {
+        //       to: partnerId,
+        //       candidate: event.candidate,
+        //     });
+        //   }
+        // };
+
         peer.onicecandidate = (event) => {
-          if (event.candidate && partnerId) {
-            console.log('[ICE] Sending candidate to:', partnerId);
-            socket.emit('webrtc-ice-candidate', {
-              to: partnerId,
-              candidate: event.candidate,
-            });
+          if (event.candidate) {
+            const type = event.candidate.candidate.split(' ')[7];
+            if ((window as any).__webrtc_debug__) {
+              (window as any).__webrtc_debug__.pushICE(type);
+            }
+        
+            if (partnerId) {
+              socket.emit('webrtc-ice-candidate', {
+                to: partnerId,
+                candidate: event.candidate,
+              });
+            }
           }
         };
+        
 
         peer.oniceconnectionstatechange = () => {
           console.log('[ICE] Connection state:', peer.iceConnectionState);

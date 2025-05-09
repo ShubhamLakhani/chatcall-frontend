@@ -8,6 +8,7 @@ import { useAppSelector } from '~/hooks/useAppSelector';
 import { useWebRTC } from '~/hooks/useWebRTC';
 import { getSocket } from '~/libs/socket';
 import { RootState } from '~/store';
+import WebRTCDebugPanel from './WebRTCDebugPanel';
 
 export default function CallClient() {
   const searchParams = useSearchParams();
@@ -50,7 +51,8 @@ export default function CallClient() {
       <CallTimer active={true} />
       <CallControls isMuted={isMuted} onMuteToggle={toggleMute} onEndCall={handleEndCall} />
       <input type="checkbox" onChange={handleAutoCall} checked={isAutoCall} title="Enable auto call" />
-      <audio ref={remoteAudioRef} autoPlay controls />
+      {/* <audio ref={remoteAudioRef} autoPlay controls /> */}
+      <WebRTCDebugPanel remoteAudioRef={remoteAudioRef} />
     </div>
   );
 }
