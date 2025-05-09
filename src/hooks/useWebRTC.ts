@@ -44,7 +44,6 @@ export function useWebRTC({ chatRoomId, isInitiator }: UseWebRTCParams) {
         peerRef.current = peer;
 
         console.log('[WEBRTC] Local stream tracks:', localStream.getTracks());
-
         localStream.getTracks().forEach((track) => {
           peer.addTrack(track, localStream);
           console.log('[WEBRTC] Added local track:', track.kind);
@@ -73,7 +72,8 @@ export function useWebRTC({ chatRoomId, isInitiator }: UseWebRTCParams) {
 
         // === REMOTE TRACK ===
         peer.ontrack = (event) => {
-          console.log('[WEBRTC] Remote track received:', event.track.kind);
+          console.log('[TRACK] Remote track event:', event.track.kind);
+          console.log('[TRACK] Stream:', event.streams[0]);
           setRemoteStream(event.streams[0]);
         };
 
@@ -139,13 +139,24 @@ export function useWebRTC({ chatRoomId, isInitiator }: UseWebRTCParams) {
           }
         });
 
-        socket.on('call-started', ({ from }) => {
+        socket.on('call-started', async ({ from }) => {
           console.log('[CALL] Call started by', from);
           setPartnerId(from);
 
-          if (peer.signalingState === 'stable' && isInitiator && peer.onnegotiationneeded) {
-            console.log('[CALL] Retrying negotiation...');
-            peer.onnegotiationneeded(new Event('negotiationneeded'));
+          // Manual offer trigger
+          if (peer.signalingState === 'stable' && isInitiator) {
+            console.log('[CALL] Retrying negotiation (manual trigger)...');
+            try {
+              makingOffer.current = true;
+              const offer = await peer.createOffer();
+              await peer.setLocalDescription(offer);
+              socket.emit('webrtc-offer', { to: from, offer });
+              console.log('[CALL] Offer re-sent manually to', from);
+            } catch (err) {
+              console.error('[CALL] Manual negotiation error:', err);
+            } finally {
+              makingOffer.current = false;
+            }
           }
         });
 
@@ -167,7 +178,6 @@ export function useWebRTC({ chatRoomId, isInitiator }: UseWebRTCParams) {
   useEffect(() => {
     if (remoteAudioRef.current && remoteStream) {
       remoteAudioRef.current.srcObject = remoteStream;
-
       remoteAudioRef.current
         .play()
         .then(() => console.log('[AUDIO] Playback started'))
