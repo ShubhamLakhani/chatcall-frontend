@@ -9,7 +9,7 @@ interface UseWebRTCParams {
   isInitiator: boolean;
 }
 
-const webrtcDebug = (window as typeof window & { __webrtc_debug__?: Window['__webrtc_debug__'] }).__webrtc_debug__;
+const webrtcDebug = typeof window !== 'undefined' ? (window as typeof window & { __webrtc_debug__?: Window['__webrtc_debug__'] }).__webrtc_debug__ : undefined;
 
 export function useWebRTC({ chatRoomId, isInitiator }: UseWebRTCParams) {
   const [isMuted, setIsMuted] = useState(false);
