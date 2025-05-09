@@ -1,3 +1,4 @@
+import { GetResult } from '@fingerprintjs/fingerprintjs';
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
 interface AuthState {
@@ -7,11 +8,13 @@ interface AuthState {
     email: string;
     username: string;
   } | null;
+  deviceInfo: GetResult | null; // Storing the fingerprint in the state
 }
 
 const initialState: AuthState = {
   token: null,
   user: null,
+  deviceInfo: null,
 };
 
 const authSlice = createSlice({
@@ -26,8 +29,11 @@ const authSlice = createSlice({
       state.token = null;
       state.user = null;
     },
+    setDevice(state, action: PayloadAction<GetResult | null>) {
+      state.deviceInfo = action.payload;
+    },
   },
 });
 
-export const { loginSuccess, logout } = authSlice.actions;
+export const { loginSuccess, logout, setDevice } = authSlice.actions;
 export default authSlice.reducer;

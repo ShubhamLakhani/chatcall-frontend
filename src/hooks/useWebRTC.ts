@@ -10,7 +10,7 @@ interface UseWebRTCParams {
   isInitiator: boolean;
 }
 
-export function useWebRTC({ chatRoomId, userId, isInitiator }: UseWebRTCParams) {
+export function useWebRTC({ chatRoomId, isInitiator }: UseWebRTCParams) {
   const [isMuted, setIsMuted] = useState(false);
   const [partnerId, setPartnerId] = useState<string | null>(null);
 
@@ -18,7 +18,8 @@ export function useWebRTC({ chatRoomId, userId, isInitiator }: UseWebRTCParams) 
   const peerRef = useRef<RTCPeerConnection | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
-  const isPlayingRef = useRef(false);
+  
+  // const isPlayingRef = useRef(false);
 
   const makingOffer = useRef(false);
   const isSettingRemoteAnswerPending = useRef(false);
@@ -135,7 +136,7 @@ export function useWebRTC({ chatRoomId, userId, isInitiator }: UseWebRTCParams) 
           }
         });
 
-        socket.on('webrtc-ice-candidate', async ({ candidate, from }) => {
+        socket.on('webrtc-ice-candidate', async ({ candidate }) => {
           try {
             await peer.addIceCandidate(new RTCIceCandidate(candidate));
           } catch (err) {

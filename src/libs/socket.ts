@@ -1,29 +1,31 @@
 // lib/socket.ts
 import { io, Socket } from 'socket.io-client';
 
-declare global {
-  var _socket: Socket | undefined;
-}
+let socket: Socket | null = null;
 
-const backendUrl = 'https://marijuana-restrictions-directions-sam.trycloudflare.com'; // Replace this with your actual backend
+export const initSocket = (): Socket => {
+  if (!socket) {
+    socket = io('https://chatcall-backend.onrender.com', {
+      transports: ['websocket'],
+      withCredentials: true,
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+      reconnectionDelay: 1000,
+    });
 
-let socket: Socket;
+    socket.on('connect', () => {
+      console.log('[SOCKET] Connected:', socket?.id);
+    });
 
-if (!global._socket) {
-  global._socket = io(backendUrl, {
-    transports: ['websocket'],
-    withCredentials: true,
-  });
+    socket.on('disconnect', () => {
+      console.log('[SOCKET] Disconnected');
+    });
+  }
 
-  global._socket.on('connect', () => {
-    console.log('[SOCKET] Connected:', global._socket?.id);
-  });
+  return socket;
+};
 
-  global._socket.on('disconnect', () => {
-    console.log('[SOCKET] Disconnected');
-  });
-}
-
-socket = global._socket;
-
-export const getSocket = () => socket;
+export const getSocket = (): Socket => {
+  if (!socket) return initSocket();
+  return socket;
+};

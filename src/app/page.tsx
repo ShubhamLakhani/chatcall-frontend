@@ -2,8 +2,9 @@
 
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
-import { useDeviceFingerprint } from '~/hooks/useDeviceFingerprint';
+import { useAppSelector } from '~/hooks/useAppSelector';
 import { getSocket } from '~/libs/socket';
+import { RootState } from '~/store';
 // import { cookies, headers } from 'next/headers';
 // import UAParser from 'ua-parser-js';
 
@@ -11,7 +12,7 @@ export default function HomePage() {
   const router = useRouter();
   const socketRef = useRef<ReturnType<typeof getSocket>>(getSocket());
   const [isMatching, setIsMatching] = useState(false);
-  const deviceInfo = useDeviceFingerprint()
+  const deviceInfo = useAppSelector((state: RootState) => state.auth.deviceInfo);
 
   console.log('Device Info:', deviceInfo);
 
