@@ -29,12 +29,14 @@ export function useWebRTC({ chatRoomId, isInitiator }: UseWebRTCParams) {
     iceServers: [
       { urls: 'stun:stun.l.google.com:19302' },
       {
-        urls: 'turn:relay1.expressturn.com:3478',
-        username: 'efk3Z7ApzZ1Fx0oVdM6Dqg==',
-        credential: 'bDux3zh8mZkb99kC',
+        urls: 'turn:openrelay.metered.ca:80',
+        username: 'openrelayproject',
+        credential: 'openrelayproject',
       },
     ],
   };
+  
+  
 
   useEffect(() => {
     const setupConnection = async () => {
