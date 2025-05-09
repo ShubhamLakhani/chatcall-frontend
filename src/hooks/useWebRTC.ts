@@ -142,16 +142,15 @@ export function useWebRTC({ chatRoomId, isInitiator }: UseWebRTCParams) {
         socket.on('call-started', async ({ from }) => {
           console.log('[CALL] Call started by', from);
           setPartnerId(from);
-
-          // Manual offer trigger
+        
           if (peer.signalingState === 'stable' && isInitiator) {
-            console.log('[CALL] Retrying negotiation (manual trigger)...');
+            console.log('[CALL] Manually creating and sending offer...');
             try {
               makingOffer.current = true;
               const offer = await peer.createOffer();
               await peer.setLocalDescription(offer);
               socket.emit('webrtc-offer', { to: from, offer });
-              console.log('[CALL] Offer re-sent manually to', from);
+              console.log('[CALL] Offer sent to', from);
             } catch (err) {
               console.error('[CALL] Manual negotiation error:', err);
             } finally {
@@ -159,6 +158,7 @@ export function useWebRTC({ chatRoomId, isInitiator }: UseWebRTCParams) {
             }
           }
         });
+        
 
         socket.emit('start-call', { chatRoomId });
       } catch (err) {
