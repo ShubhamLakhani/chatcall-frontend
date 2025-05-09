@@ -1,7 +1,6 @@
-import SocketBootstrap from "~/components/socket/SocketBootstrap";
+import { SocketProvider } from "~/context/SocketProvider";
 import "./globals.css";
 import Providers from "./providers";
-import { SocketProvider } from "~/context/SocketProvider";
 
 // const geistSans = Geist({
 //   variable: "--font-geist-sans",

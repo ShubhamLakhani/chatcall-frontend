@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter, useSearchParams } from 'next/navigation';
-import { use, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import CallControls from '~/components/call/CallControls';
 import CallTimer from '~/components/call/CallTimer';
 import { useAppSelector } from '~/hooks/useAppSelector';
