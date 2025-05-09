@@ -39,16 +39,29 @@ export function useWebRTC({ chatRoomId, isInitiator }: UseWebRTCParams) {
   useEffect(() => {
     const setupConnection = async () => {
       try {
+        console.log('[STEP] 1: Getting local stream...');
         const localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        console.log('[MEDIA] Got local stream:', localStream);
+        console.log('[STEP] 2: Got local stream', localStream.getTracks());
+
         localStreamRef.current = localStream;
 
         const peer = new RTCPeerConnection(rtcConfig);
+        console.log('[STEP] 3: Created RTCPeerConnection');
         peerRef.current = peer;
 
+        peerRef.current.onicecandidateerror = (e) => {
+          console.error('[ICE] Candidate error:', e.errorText);
+        };
         // localStream.getTracks().forEach((track) => {
         //   peer.addTrack(track, localStream);
         //   console.log('[WEBRTC] Added local track:', track.kind);
         // });
+
+        localStream.getTracks().forEach((track) => {
+          peer.addTrack(track, localStream);
+          console.log('[STEP] 4: Added track:', track.kind);
+        });
 
         localStream.getAudioTracks().forEach((track) => {
           peer.addTrack(track, localStream);
