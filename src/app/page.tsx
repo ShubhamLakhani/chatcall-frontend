@@ -12,6 +12,7 @@ export default function HomePage() {
   const router = useRouter();
   const socketRef = useRef<ReturnType<typeof getSocket>>(getSocket());
   const [isMatching, setIsMatching] = useState(false);
+  const [matchType, setMatchType] = useState<'voice-call' | 'chat' | null>(null);
   const deviceInfo = useAppSelector((state: RootState) => state.auth.deviceInfo);
 
   console.log('Device Info:', deviceInfo);
@@ -42,9 +43,13 @@ export default function HomePage() {
       setIsMatching(true);
     });
 
-    socket.on('matched', ({ chatRoomId, initiator }) => {
-      console.log('Matched! Redirecting to room:', chatRoomId);
-      router.push(`/call?room=${chatRoomId}&initiator=${initiator}`);
+    socket.on('matched', ({ chatRoomId, initiator, moduleType }) => {
+      console.log('Matched with a user:', chatRoomId, initiator, moduleType);
+      if (moduleType === 'chat') {
+        router.push(`/chat?room=${chatRoomId}&initiator=${initiator}`);
+      } else {
+        router.push(`/call?room=${chatRoomId}&initiator=${initiator}`);
+      }
     });
 
     // return () => {
@@ -52,17 +57,30 @@ export default function HomePage() {
     //   socket.off('waiting');
     //   socket.off('matched');
     // };
-  }, [router]);
+  }, [router, matchType]);
 
   const handleStartVoiceCall = () => {
     if (!socketRef.current) return;
     setIsMatching(true);
+    setMatchType('voice-call');
     if (deviceInfo) {
-      socketRef.current.emit('find-match', { deviceId: deviceInfo.visitorId });
+      socketRef.current.emit('find-match', { deviceId: `dev-${Math.random().toString(36).substring(2, 10)}`, moduleType: 'voice-call' });
     } else {
       console.error('Device info is not available.');
     }
   };
+
+  const handleStartTextChat = () => {
+    if (!socketRef.current) return;
+    setIsMatching(true);
+    setMatchType('chat');
+    if (deviceInfo) {
+      socketRef.current.emit('find-match', { deviceId: `dev-${Math.random().toString(36).substring(2, 10)}`, moduleType: 'chat' });
+    } else {
+      console.error('Device info is not available.');
+    }
+  };
+  
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen px-4 py-10 bg-gradient-to-br from-blue-50 to-indigo-100">
@@ -82,7 +100,7 @@ export default function HomePage() {
 
         <button
           className="bg-gray-100 hover:bg-gray-200 text-gray-800 py-3 px-6 rounded text-lg font-semibold"
-          onClick={() => alert('Text chat coming soon')}
+          onClick={handleStartTextChat}
         >
           Start Text Chat
         </button>

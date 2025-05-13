@@ -1,78 +1,52 @@
+// components/Auth/SignupForm.tsx
 'use client';
 
-import { useState } from 'react';
-import { openAuthModal } from '~/store/slices/modalSlice';
-import { useAppDispatch } from '~/hooks/useAppDispatch';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { authSchema, AuthFormData } from '~/libs/validations/authSchema';
 
 export default function SignupForm() {
-  const dispatch = useAppDispatch();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [username, setUsername] = useState('');
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState(false);
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<AuthFormData>({
+    resolver: zodResolver(authSchema),
+  });
 
-  const handleSignup = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setSuccess(false);
-
-    try {
-      const res = await fetch('/api/auth/signup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, username }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        setError(data.message || 'Signup failed');
-        return;
-      }
-
-      setSuccess(true);
-      setTimeout(() => {
-        dispatch(openAuthModal('login'));
-      }, 1500);
-    } catch {
-      setError('Something went wrong. Please try again.');
-    }
+  const onSubmit = async (data: AuthFormData) => {
+    console.log('Signup data:', data);
+    // TODO: Call signup API
   };
 
   return (
-    <form onSubmit={handleSignup} className="space-y-4">
-      <input
-        type="text"
-        placeholder="Username"
-        value={username}
-        onChange={(e) => setUsername(e.target.value)}
-        className="w-full p-2 border rounded"
-        required
-      />
-      <input
-        type="email"
-        placeholder="Email"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        className="w-full p-2 border rounded"
-        required
-      />
-      <input
-        type="password"
-        placeholder="Password"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        className="w-full p-2 border rounded"
-        required
-      />
-      {error && <p className="text-sm text-red-500">{error}</p>}
-      {success && <p className="text-sm text-green-600">Signup successful! Redirecting to login…</p>}
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <div>
+        <label className="block mb-1 text-sm">Email</label>
+        <input
+          type="email"
+          {...register('email')}
+          className="w-full border px-3 py-2 rounded"
+        />
+        {errors.email && <p className="text-sm text-red-600 mt-1">{errors.email.message}</p>}
+      </div>
+
+      <div>
+        <label className="block mb-1 text-sm">Password</label>
+        <input
+          type="password"
+          {...register('password')}
+          className="w-full border px-3 py-2 rounded"
+        />
+        {errors.password && <p className="text-sm text-red-600 mt-1">{errors.password.message}</p>}
+      </div>
+
       <button
         type="submit"
-        className="w-full bg-green-600 text-white py-2 rounded hover:bg-green-700"
+        disabled={isSubmitting}
+        className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700"
       >
-        Sign Up
+        {isSubmitting ? 'Signing up...' : 'Sign up'}
       </button>
     </form>
   );

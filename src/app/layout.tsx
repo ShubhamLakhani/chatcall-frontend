@@ -1,6 +1,7 @@
 import { SocketProvider } from "~/context/SocketProvider";
 import "./globals.css";
 import Providers from "./providers";
+import Header from "~/components/common/Header";
 
 // const geistSans = Geist({
 //   variable: "--font-geist-sans",
@@ -26,7 +27,8 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <Providers>
-        <SocketProvider>
+          <SocketProvider>
+            <Header />
           {children}
           </SocketProvider>
         </Providers>

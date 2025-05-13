@@ -9,7 +9,12 @@ interface UseWebRTCParams {
   isInitiator: boolean;
 }
 
-const webrtcDebug = typeof window !== 'undefined' ? (window as typeof window & { __webrtc_debug__?: Window['__webrtc_debug__'] }).__webrtc_debug__ : undefined;
+const webrtcDebug =
+  typeof window !== 'undefined'
+    ? (window as typeof window & {
+        __webrtc_debug__?: Window['__webrtc_debug__'];
+      }).__webrtc_debug__
+    : undefined;
 
 export function useWebRTC({ chatRoomId, isInitiator }: UseWebRTCParams) {
   const [isMuted, setIsMuted] = useState(false);
@@ -21,49 +26,28 @@ export function useWebRTC({ chatRoomId, isInitiator }: UseWebRTCParams) {
   const localStreamRef = useRef<MediaStream | null>(null);
   const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
 
-  const makingOffer = useRef(false);
+  const isMakingOffer = useRef(false);
+  const isIgnoringOffer = useRef(false);
   const isSettingRemoteAnswerPending = useRef(false);
   const isPolite = !isInitiator;
 
   const rtcConfig: RTCConfiguration = {
     iceServers: [
       { urls: 'stun:stun.l.google.com:19302' },
-      {
-        urls: 'turn:openrelay.metered.ca:80',
-        username: 'openrelayproject',
-        credential: 'openrelayproject',
-      },
     ],
   };
-  
-  
 
   useEffect(() => {
     const setupConnection = async () => {
       try {
-        console.log('[STEP] 1: Getting local stream...');
         const localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        console.log('[MEDIA] Got local stream:', localStream);
-        console.log('[STEP] 2: Got local stream', localStream.getTracks());
-
         localStreamRef.current = localStream;
 
         const peer = new RTCPeerConnection(rtcConfig);
-        console.log('[STEP] 3: Created RTCPeerConnection');
         peerRef.current = peer;
-
-        peerRef.current.onicecandidateerror = (e) => {
-          console.error('[ICE] Candidate error:', e.errorText);
-        };
-        // localStream.getTracks().forEach((track) => {
-        //   peer.addTrack(track, localStream);
-        //   console.log('[WEBRTC] Added local track:', track.kind);
-        // });
 
         localStream.getTracks().forEach((track) => {
           peer.addTrack(track, localStream);
-          console.log('[STEP] 4: Added track:', track.kind);
-        
           if (track.kind === 'audio') {
             webrtcDebug?.setLocalTrackStatus({
               enabled: track.enabled,
@@ -73,64 +57,53 @@ export function useWebRTC({ chatRoomId, isInitiator }: UseWebRTCParams) {
           }
         });
 
-        // peer.ontrack = (event) => {
-        //   console.log('[TRACK] Remote track received:', event.streams[0]);
-        //   setRemoteStream(event.streams[0]);
-        // };
-
         peer.ontrack = (event) => {
-          const [audioTrack] = event.streams[0].getAudioTracks();
-          webrtcDebug?.setRemoteTrackStatus({
-            enabled: audioTrack.enabled,
-            muted: audioTrack.muted,
-            readyState: audioTrack.readyState,
-          });
-
-          setRemoteStream(event.streams[0]);
-        };
-
-        // peer.onicecandidate = (event) => {
-        //   if (event.candidate && partnerId) {
-        //     console.log('[ICE] Sending candidate to:', partnerId);
-        //     socket.emit('webrtc-ice-candidate', {
-        //       to: partnerId,
-        //       candidate: event.candidate,
-        //     });
-        //   }
-        // };
-
-        peer.onicecandidate = (event) => {
-          if (event.candidate) {
-            const type = event.candidate.candidate.split(' ')[7];
-            webrtcDebug?.pushICE(type);
-
-            if (partnerId) {
-              socket.emit('webrtc-ice-candidate', {
-                to: partnerId,
-                candidate: event.candidate,
+          console.log('[TRACK] ontrack fired. Stream:', event.streams[0]);
+          const remoteStream = event.streams[0];
+          if (remoteStream) {
+            const [audioTrack] = remoteStream.getAudioTracks();
+            if (audioTrack) {
+              console.log('[TRACK] Remote audio track:', audioTrack);
+              webrtcDebug?.setRemoteTrackStatus({
+                enabled: audioTrack.enabled,
+                muted: audioTrack.muted,
+                readyState: audioTrack.readyState,
               });
             }
+            setRemoteStream(remoteStream);
           }
         };
 
+        peer.onicecandidate = (event) => {
+          if (event.candidate && partnerId) {
+            socket.emit('webrtc-ice-candidate', {
+              to: partnerId,
+              candidate: event.candidate,
+            });
+          }
+        };
+
+        peer.onicecandidateerror = (e) => {
+          console.error('[ICE ERROR]', e.errorText);
+        };
 
         peer.oniceconnectionstatechange = () => {
           console.log('[ICE] Connection state:', peer.iceConnectionState);
         };
 
-        // Signaling handlers
         socket.on('webrtc-offer', async ({ offer, from }) => {
-          console.log('[SIGNAL] Got offer from', from);
-          setPartnerId(from);
           const peer = peerRef.current;
-          if (!peer) {
-            console.warn('[SIGNAL] Peer connection is null');
-            return;
-          }
-          const ready = !makingOffer.current && (peer.signalingState === 'stable' || isPolite);
+          if (!peer) return;
 
-          if (!ready) {
-            console.warn('[SIGNAL] Skipping offer — peer not ready');
+          const readyForOffer =
+            !isMakingOffer.current &&
+            (peer.signalingState === 'stable' || isSettingRemoteAnswerPending.current);
+
+          const offerCollision = !readyForOffer;
+          isIgnoringOffer.current = !isPolite && offerCollision;
+
+          if (isIgnoringOffer.current) {
+            console.warn('[SIGNAL] Ignoring offer due to collision.');
             return;
           }
 
@@ -140,24 +113,35 @@ export function useWebRTC({ chatRoomId, isInitiator }: UseWebRTCParams) {
             const answer = await peer.createAnswer();
             await peer.setLocalDescription(answer);
             socket.emit('webrtc-answer', { to: from, answer });
+            setPartnerId(from);
           } catch (err) {
-            console.error('[SIGNAL] Offer error:', err);
+            console.error('[SIGNAL] Offer handling error:', err);
           } finally {
             isSettingRemoteAnswerPending.current = false;
           }
         });
 
         socket.on('webrtc-answer', async ({ answer, from }) => {
-          console.log('[SIGNAL] Got answer from', from);
-          setPartnerId(from);
+          const peer = peerRef.current;
+          if (!peer) return;
+
+          if (peer.signalingState !== 'have-local-offer') {
+            console.warn('[SIGNAL] Ignoring answer — unexpected signaling state:', peer.signalingState);
+            return;
+          }
+
           try {
             await peer.setRemoteDescription(new RTCSessionDescription(answer));
+            setPartnerId(from);
           } catch (err) {
-            console.error('[SIGNAL] Answer error:', err);
+            console.error('[SIGNAL] Answer handling error:', err);
           }
         });
 
         socket.on('webrtc-ice-candidate', async ({ candidate }) => {
+          const peer = peerRef.current;
+          if (!peer) return;
+
           try {
             await peer.addIceCandidate(new RTCIceCandidate(candidate));
           } catch (err) {
@@ -166,13 +150,13 @@ export function useWebRTC({ chatRoomId, isInitiator }: UseWebRTCParams) {
         });
 
         socket.on('call-started', async ({ from }) => {
-          console.log('[CALL] Started by:', from);
-          setPartnerId(from);
+          const peer = peerRef.current;
+          if (!peer) return;
 
-          // MANUALLY trigger negotiation when partnerId is ready
-          if (isInitiator) {
+          setPartnerId(from);
+          if (isInitiator && peer.signalingState === 'stable') {
             try {
-              makingOffer.current = true;
+              isMakingOffer.current = true;
               const offer = await peer.createOffer();
               await peer.setLocalDescription(offer);
               socket.emit('webrtc-offer', { to: from, offer });
@@ -180,12 +164,11 @@ export function useWebRTC({ chatRoomId, isInitiator }: UseWebRTCParams) {
             } catch (err) {
               console.error('[CALL] Offer error:', err);
             } finally {
-              makingOffer.current = false;
+              isMakingOffer.current = false;
             }
           }
         });
 
-        // Kick off call
         socket.emit('start-call', { chatRoomId });
       } catch (err) {
         console.error('[WEBRTC] Setup error:', err);
@@ -200,7 +183,6 @@ export function useWebRTC({ chatRoomId, isInitiator }: UseWebRTCParams) {
     };
   }, [chatRoomId]);
 
-  // assign stream to <audio> once it's ready
   useEffect(() => {
     if (remoteAudioRef.current && remoteStream) {
       remoteAudioRef.current.srcObject = remoteStream;
