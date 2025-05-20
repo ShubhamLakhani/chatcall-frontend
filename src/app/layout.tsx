@@ -34,6 +34,7 @@ export default function RootLayout({
           </SocketProvider>
         </Providers>
         <Script
+          id="self-booking-widget"
           dangerouslySetInnerHTML={{
             __html: `
               var WidgetConfig = { clientId: "6694b6c75fd1f18f64720c0e" };
