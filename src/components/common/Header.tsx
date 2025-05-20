@@ -2,10 +2,10 @@
 'use client';
 
 import { useDispatch, useSelector } from 'react-redux';
-import { RootState } from '~/store';
-import { openAuthModal, closeAuthModal } from '~/store/slices/modalSlice';
+import AuthModal from "~/components/auth/AuthModal";
+import { RootState } from "~/store";
 import { logout } from '~/store/slices/authSlice';
-import AuthModal from '~/components/auth/AuthModal';
+import { openAuthModal } from "~/store/slices/modalSlice";
 
 export default function Header() {
   const dispatch = useDispatch();
