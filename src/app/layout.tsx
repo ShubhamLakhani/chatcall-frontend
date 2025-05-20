@@ -37,12 +37,12 @@ export default function RootLayout({
           id="self-booking-widget"
           dangerouslySetInnerHTML={{
             __html: `
-              var WidgetConfig = { clientId: "6694b6c75fd1f18f64720c0e" };
+              var WidgetConfig = { clientId: "66ae27a523c00a73bb8d49e8" };
               (function () {
                 var s1 = document.createElement("script"),
                     s0 = document.getElementsByTagName("script")[0];
                 s1.async = true;
-                s1.src = "https://self-booking.vercel.app/widget.js";
+                s1.src = "https://gms-self-booking-chat.vercel.app/widget.js";
                 s1.charset = "UTF-8";
                 s1.setAttribute("crossorigin", "*");
                 s0.parentNode.insertBefore(s1, s0);
