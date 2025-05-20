@@ -2,6 +2,7 @@ import { SocketProvider } from "~/context/SocketProvider";
 import "./globals.css";
 import Providers from "./providers";
 import Header from "~/components/common/Header";
+import Script from "next/script";
 
 // const geistSans = Geist({
 //   variable: "--font-geist-sans",
@@ -29,9 +30,25 @@ export default function RootLayout({
         <Providers>
           <SocketProvider>
             <Header />
-          {children}
+            {children}
           </SocketProvider>
         </Providers>
+        <Script
+          dangerouslySetInnerHTML={{
+            __html: `
+              var WidgetConfig = { clientId: "6694b6c75fd1f18f64720c0e" };
+              (function () {
+                var s1 = document.createElement("script"),
+                    s0 = document.getElementsByTagName("script")[0];
+                s1.async = true;
+                s1.src = "https://self-booking.vercel.app/widget.js";
+                s1.charset = "UTF-8";
+                s1.setAttribute("crossorigin", "*");
+                s0.parentNode.insertBefore(s1, s0);
+              })();
+            `,
+          }}
+        />
       </body>
     </html>
   );
