@@ -37,7 +37,7 @@ export default function Header() {
               </div>
             ) : (
               <button
-                onClick={() => dispatch(openAuthModal('login'))}
+                onClick={() => dispatch(openAuthModal("login"))}
                 className="text-sm font-medium text-blue-600 hover:underline"
               >
                 Login / Signup
@@ -46,10 +46,7 @@ export default function Header() {
           </div>
         </div>
       </header>
-
-      {isAuthModalOpen && (
-        <AuthModal />
-      )}
+      {isAuthModalOpen && <AuthModal />}
     </>
   );
 }
