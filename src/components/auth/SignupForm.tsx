@@ -1,10 +1,9 @@
 // components/Auth/SignupForm.tsx
 'use client';
 
-import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { authSchema, AuthFormData } from '~/libs/validations/authSchema';
-import axiosInstance from "~/libs/axiosInstance";
+import { useForm } from 'react-hook-form';
+import { AuthFormData, authSchema } from '~/libs/validations/authSchema';
 import { doSignup } from "~/services/auth";
 
 export default function SignupForm() {
