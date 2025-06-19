@@ -6,7 +6,7 @@ let socket: Socket | null = null;
 export const initSocket = (): Socket => {
   if (!socket) {
     // socket = io('https://chatcall-backend.onrender.com', {
-    socket = io('http://localhost:3001', {
+    socket = io(process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001', {
       transports: ['websocket'],
       withCredentials: true,
       reconnection: true,
