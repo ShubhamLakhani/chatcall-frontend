@@ -54,6 +54,16 @@ export default function CallClient() {
 
   // In-Call Chat Overlay States
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const isChatOpenRef = useRef(isChatOpen);
+
+  useEffect(() => {
+    isChatOpenRef.current = isChatOpen;
+    if (isChatOpen) {
+      setUnreadCount(0);
+    }
+  }, [isChatOpen]);
+
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState('');
   const chatEndRef = useRef<HTMLDivElement | null>(null);
@@ -156,6 +166,10 @@ export default function CallClient() {
           self: false,
         },
       ]);
+
+      if (!isChatOpenRef.current) {
+        setUnreadCount((c) => c + 1);
+      }
     };
 
     socket.on('receive-message', handleReceiveMessage);
@@ -357,138 +371,157 @@ export default function CallClient() {
   }
 
   return (
-    <div className="flex flex-col justify-between items-center h-screen bg-zinc-950 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-zinc-900 via-zinc-950 to-black px-4 py-6 relative overflow-hidden text-white">
-      
-      {/* Immersive Video Chat stream components */}
-      {moduleType === 'video-call' && (
-        <div className="absolute inset-0 w-full h-full z-0 flex items-center justify-center bg-black/50">
-          {remoteStream ? (
-            <video
-              ref={remoteVideoRef}
-              autoPlay
-              playsInline
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <div className="flex flex-col items-center justify-center text-zinc-500">
-              <div className="text-4xl animate-bounce mb-3">📹</div>
-              <p className="text-sm font-semibold">Connecting video stream...</p>
+    <div className="flex-1 flex flex-col h-[calc(100vh-4rem)] max-h-[calc(100vh-4rem)] overflow-hidden w-full relative bg-zinc-950 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-zinc-900 via-zinc-950 to-black text-white">
+      {/* Flex Row (Video Stage + Chat Drawer) */}
+      <div className="flex-1 flex w-full h-full min-h-0 overflow-hidden relative">
+        
+        {/* Left Side: Video/Voice Stage (fills remaining width dynamically) */}
+        <div className="flex-1 flex flex-col justify-between items-center px-4 py-6 relative overflow-hidden h-full">
+          
+          {/* Immersive Video Chat stream components */}
+          {moduleType === 'video-call' && (
+            <div className="absolute inset-0 w-full h-full z-0 flex items-center justify-center bg-black/50">
+              {remoteStream ? (
+                <video
+                  ref={remoteVideoRef}
+                  autoPlay
+                  playsInline
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="flex flex-col items-center justify-center text-zinc-500">
+                  <div className="text-4xl animate-bounce mb-3">📹</div>
+                  <p className="text-sm font-semibold">Connecting video stream...</p>
+                </div>
+              )}
+
+              {/* Floating Local PiP camera preview */}
+              {localStream && (
+                <video
+                  ref={localVideoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className="absolute bottom-28 right-6 w-28 sm:w-32 h-36 sm:h-44 rounded-2xl border border-white/20 shadow-2xl object-cover z-20 hover:scale-105 transition-transform"
+                />
+              )}
             </div>
           )}
 
-          {/* Floating Local PiP camera preview */}
-          {localStream && (
-            <video
-              ref={localVideoRef}
-              autoPlay
-              playsInline
-              muted
-              className="absolute bottom-28 right-6 w-28 sm:w-32 h-36 sm:h-44 rounded-2xl border border-white/20 shadow-2xl object-cover z-20 hover:scale-105 transition-transform"
+          {/* Floating Icebreaker starter */}
+          <IcebreakerPrompt prompt={icebreaker} onShuffle={handleShuffleIcebreaker} />
+
+          <div className="flex flex-col items-center mt-10 z-10 bg-black/30 border border-white/5 backdrop-blur-md px-5 py-2.5 rounded-full shadow-lg">
+            <h2 className="text-[10px] sm:text-xs uppercase tracking-widest font-extrabold text-indigo-400">
+              In a {moduleType === 'video-call' ? 'Video Call' : 'Voice Call'}
+            </h2>
+            <p className="text-xs sm:text-sm font-bold text-zinc-200 mt-0.5">
+              Chatting with: <span className="text-indigo-400">{partner ? partner.username : 'Anonymous'}</span>
+            </p>
+          </div>
+
+          <div className="flex-1 flex flex-col justify-center items-center z-10 w-full">
+            {moduleType === 'voice-call' ? (
+              <>
+                <CallTimer active={true} />
+                <AudioVisualizer stream={remoteStream} />
+              </>
+            ) : (
+              /* Small overlaid timer for clean video session monitoring */
+              <div className="bg-black/40 border border-white/5 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-semibold text-zinc-300 absolute top-28">
+                <CallTimer active={true} />
+              </div>
+            )}
+          </div>
+
+          <div className="flex flex-col items-center gap-3 w-full max-w-xs z-10">
+            <CallControls
+              isMuted={isMuted}
+              onMuteToggle={toggleMute}
+              onEndCall={handleEndCall}
+              onSkip={handleSkip}
+              onAddFriend={handleAddFriend}
+              isFriendAdded={isFriendRequested}
+              isVideoEnabled={isVideoEnabled}
+              onVideoToggle={moduleType === 'video-call' ? toggleVideo : undefined}
+              isChatOpen={isChatOpen}
+              onChatToggle={() => {
+                setIsChatOpen((prev) => {
+                  const next = !prev;
+                  if (next) {
+                    setUnreadCount(0);
+                  }
+                  return next;
+                });
+              }}
+              unreadCount={unreadCount}
             />
-          )}
+            <label className="flex items-center gap-2 cursor-pointer text-[10px] font-bold text-zinc-400 bg-white/5 px-3 py-1.5 rounded-full border border-white/5 backdrop-blur-sm shadow-sm hover:scale-105 transition-transform select-none uppercase tracking-wider">
+              <input
+                type="checkbox"
+                onChange={handleAutoCall}
+                checked={isAutoCall}
+                className="rounded border-zinc-700 bg-zinc-900 text-indigo-500 focus:ring-indigo-500 h-3.5 w-3.5"
+              />
+              <span>Auto-call on Disconnect</span>
+            </label>
+          </div>
+
         </div>
-      )}
 
-      {/* Floating Icebreaker starter */}
-      <IcebreakerPrompt prompt={icebreaker} onShuffle={handleShuffleIcebreaker} />
+        {/* Right Side: Glassmorphic Chat Drawer */}
+        {isChatOpen && (
+          <div className="w-80 sm:w-96 h-full border-l border-white/10 bg-zinc-950/90 backdrop-blur-2xl flex flex-col justify-between shrink-0 min-h-0 overflow-hidden z-30 transition-all duration-300">
+            {/* Drawer Header */}
+            <div className="p-4 border-b border-white/10 flex items-center justify-between shrink-0">
+              <h3 className="text-sm font-semibold text-white/90">In-Call Chat</h3>
+              <button
+                onClick={() => setIsChatOpen(false)}
+                className="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-white/10 text-sm font-bold w-6 h-6 flex items-center justify-center transition-all"
+              >
+                ✕
+              </button>
+            </div>
 
-      <div className="flex flex-col items-center mt-10 z-10 bg-black/30 border border-white/5 backdrop-blur-md px-5 py-2.5 rounded-full shadow-lg">
-        <h2 className="text-[10px] sm:text-xs uppercase tracking-widest font-extrabold text-indigo-400">
-          In a {moduleType === 'video-call' ? 'Video Call' : 'Voice Call'}
-        </h2>
-        <p className="text-xs sm:text-sm font-bold text-zinc-200 mt-0.5">
-          Chatting with: <span className="text-indigo-400">{partner ? partner.username : 'Anonymous'}</span>
-        </p>
-      </div>
+            {/* Messages Feed (Scrollable) */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-0">
+              {chatMessages.map((msg) => (
+                <div key={msg.id} className={`flex flex-col ${msg.self ? 'items-end' : 'items-start'}`}>
+                  <div className={`max-w-[85%] px-3.5 py-2 rounded-2xl text-sm ${
+                    msg.self
+                      ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-br-none'
+                      : 'bg-white/10 text-zinc-200 border border-white/10 rounded-bl-none'
+                  }`}>
+                    {msg.content}
+                  </div>
+                  <span className="text-[10px] text-zinc-500 mt-1 px-1">
+                    {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </div>
+              ))}
+              <div ref={chatEndRef} />
+            </div>
 
-      <div className="flex-1 flex flex-col justify-center items-center z-10 w-full">
-        {moduleType === 'voice-call' ? (
-          <>
-            <CallTimer active={true} />
-            <AudioVisualizer stream={remoteStream} />
-          </>
-        ) : (
-          /* Small overlaid timer for clean video session monitoring */
-          <div className="bg-black/40 border border-white/5 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-semibold text-zinc-300 absolute top-28">
-            <CallTimer active={true} />
+            {/* Fixed Input Form Bar at Bottom */}
+            <div className="p-3 border-t border-white/10 bg-zinc-950/50 flex gap-2 shrink-0">
+              <input
+                type="text"
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSendChatMessage()}
+                placeholder="Type a message..."
+                className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/50"
+              />
+              <button
+                onClick={handleSendChatMessage}
+                className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-600 border border-indigo-500/20 text-white font-medium text-sm hover:opacity-90 transition-opacity rounded-xl"
+              >
+                Send
+              </button>
+            </div>
           </div>
         )}
-      </div>
 
-      {/* Side Slide-In Chat Drawer Panel */}
-      {isChatOpen && (
-        <div className="absolute right-0 top-0 bottom-0 w-80 bg-zinc-950/80 border-l border-white/10 backdrop-blur-xl shadow-2xl z-30 flex flex-col justify-between p-4 animate-fade-in">
-          <div className="flex justify-between items-center border-b border-white/10 pb-2 mb-3">
-            <h3 className="text-sm font-bold text-indigo-400">In-Call Chat</h3>
-            <button
-              onClick={() => setIsChatOpen(false)}
-              className="text-zinc-400 hover:text-white text-sm font-bold w-6 h-6 flex items-center justify-center rounded hover:bg-white/5"
-            >
-              ✕
-            </button>
-          </div>
-          
-          <div className="flex-1 overflow-y-auto space-y-3 mb-3 pr-1">
-            {chatMessages.map((msg) => (
-              <div key={msg.id} className="flex flex-col">
-                <div
-                  className={`p-2.5 rounded-xl text-xs max-w-[80%] shadow-md ${
-                    msg.self
-                      ? 'ml-auto bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-tr-none'
-                      : 'mr-auto bg-white/10 text-zinc-100 rounded-tl-none border border-white/5'
-                  }`}
-                >
-                  {msg.content}
-                </div>
-                <span className={`text-[8px] text-zinc-500 mt-0.5 ${msg.self ? 'text-right px-1' : 'text-left px-1'}`}>
-                  {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </span>
-              </div>
-            ))}
-            <div ref={chatEndRef} />
-          </div>
-          
-          <div className="flex gap-2 border-t border-white/10 pt-3">
-            <input
-              type="text"
-              value={chatInput}
-              onChange={(e) => setChatInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSendChatMessage()}
-              placeholder="Type message..."
-              className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
-            />
-            <button
-              onClick={handleSendChatMessage}
-              className="bg-gradient-to-r from-indigo-500 to-purple-600 border border-indigo-500/20 text-white px-3 py-2 rounded-xl text-xs font-bold hover:from-indigo-600 hover:to-purple-700 active:scale-95 transition-all"
-            >
-              Send
-            </button>
-          </div>
-        </div>
-      )}
-
-      <div className="flex flex-col items-center gap-3 w-full max-w-xs z-10">
-        <CallControls
-          isMuted={isMuted}
-          onMuteToggle={toggleMute}
-          onEndCall={handleEndCall}
-          onSkip={handleSkip}
-          onAddFriend={handleAddFriend}
-          isFriendAdded={isFriendRequested}
-          isVideoEnabled={isVideoEnabled}
-          onVideoToggle={moduleType === 'video-call' ? toggleVideo : undefined}
-          isChatOpen={isChatOpen}
-          onChatToggle={() => setIsChatOpen((prev) => !prev)}
-        />
-        <label className="flex items-center gap-2 cursor-pointer text-[10px] font-bold text-zinc-400 bg-white/5 px-3 py-1.5 rounded-full border border-white/5 backdrop-blur-sm shadow-sm hover:scale-105 transition-transform select-none uppercase tracking-wider">
-          <input
-            type="checkbox"
-            onChange={handleAutoCall}
-            checked={isAutoCall}
-            className="rounded border-zinc-700 bg-zinc-900 text-indigo-500 focus:ring-indigo-500 h-3.5 w-3.5"
-          />
-          Auto-call on Disconnect
-        </label>
       </div>
 
       <audio ref={remoteAudioRef} autoPlay playsInline style={{ display: 'none' }} />

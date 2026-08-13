@@ -24,8 +24,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body>
+    <html lang="en" className="h-full overflow-hidden">
+      <body className="h-full max-h-screen overflow-hidden bg-zinc-950 text-white flex flex-col">
         <Providers>
           <SocketProvider>
             <Header />
