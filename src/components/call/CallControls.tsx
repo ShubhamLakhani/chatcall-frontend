@@ -12,6 +12,7 @@ interface Props {
   isChatOpen?: boolean;
   onChatToggle?: () => void;
   unreadCount?: number;
+  onGiftClick?: () => void;
 }
 
 export default function CallControls({
@@ -26,6 +27,7 @@ export default function CallControls({
   isChatOpen = false,
   onChatToggle,
   unreadCount = 0,
+  onGiftClick,
 }: Props) {
   return (
     <div className="flex justify-center items-center gap-6 mb-12">
@@ -110,6 +112,17 @@ export default function CallControls({
           title={isFriendAdded ? 'Friend Request Sent' : 'Add Friend'}
         >
           <span className="text-xl font-bold">{isFriendAdded ? '❤️' : '♡'}</span>
+        </button>
+      )}
+
+      {/* 🎁 Gift Menu Button */}
+      {onGiftClick && (
+        <button
+          onClick={onGiftClick}
+          className="w-14 h-14 bg-white/5 border border-white/10 text-yellow-400 hover:bg-white/10 hover:text-yellow-300 rounded-full shadow-lg flex items-center justify-center transition-all cursor-pointer"
+          title="Send a Gift"
+        >
+          <span className="text-xl font-bold">🎁</span>
         </button>
       )}
     </div>
