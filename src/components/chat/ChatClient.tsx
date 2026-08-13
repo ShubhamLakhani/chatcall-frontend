@@ -128,6 +128,19 @@ export default function ChatClient() {
     };
   }, [router]);
 
+  // Listen for real-time icebreaker shuffles from matched partner
+  useEffect(() => {
+    const handleNewIcebreaker = (data: { icebreaker: string }) => {
+      console.log('[SOCKET] New icebreaker received:', data.icebreaker);
+      setIcebreaker(data.icebreaker);
+    };
+
+    socket.on('new-icebreaker', handleNewIcebreaker);
+    return () => {
+      socket.off('new-icebreaker', handleNewIcebreaker);
+    };
+  }, []);
+
   // Handle incoming messages
   useEffect(() => {
     if (!chatRoomId) return;
@@ -210,6 +223,12 @@ export default function ChatClient() {
     }
   };
 
+  const handleShuffleIcebreaker = () => {
+    if (chatRoomId) {
+      socket.emit('request-new-icebreaker', { chatRoomId });
+    }
+  };
+
   // Global Keyboard Shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -258,16 +277,16 @@ export default function ChatClient() {
 
   if (isSearching) {
     return (
-      <div className="flex flex-col justify-center items-center h-screen bg-slate-900 text-white px-4">
+      <div className="flex flex-col justify-center items-center h-screen bg-zinc-950 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-zinc-900 via-zinc-950 to-black text-white px-4">
         <div className="relative flex h-24 w-24 justify-center items-center">
           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
           <span className="relative inline-flex rounded-full h-14 w-14 bg-indigo-500 justify-center items-center text-3xl shadow-lg shadow-indigo-500/50">💬</span>
         </div>
         <h2 className="text-2xl font-bold mt-8 mb-2 animate-pulse">Finding a partner...</h2>
-        <p className="text-sm text-gray-400">Press Spacebar or Swipe to Skip</p>
+        <p className="text-sm text-zinc-400">Press Spacebar or Swipe to Skip</p>
         <button
           onClick={() => router.push('/')}
-          className="mt-8 px-6 py-2 bg-red-600/30 hover:bg-red-600 border border-red-500/50 text-white rounded-full transition-all text-xs font-bold uppercase tracking-wider"
+          className="mt-8 px-6 py-2 bg-rose-500/30 hover:bg-rose-600 border border-rose-500/50 text-white rounded-full transition-all text-xs font-bold uppercase tracking-wider"
         >
           Cancel Search
         </button>
@@ -276,41 +295,41 @@ export default function ChatClient() {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-white px-4 py-6 relative overflow-hidden">
+    <div className="flex flex-col h-screen bg-zinc-950 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-zinc-900 via-zinc-950 to-black px-4 py-6 relative overflow-hidden text-white">
       {/* Conversation Icebreaker Prompts */}
-      <IcebreakerPrompt prompt={icebreaker} />
+      <IcebreakerPrompt prompt={icebreaker} onShuffle={handleShuffleIcebreaker} />
 
-      <div className="flex justify-between items-center border-b pb-3 mb-3 z-10">
+      <div className="flex justify-between items-center border-b border-white/10 pb-3 mb-3 z-10">
         <div className="text-left">
-          <h2 className="text-sm uppercase tracking-widest font-bold text-indigo-400/80">Text Chat Room</h2>
-          <p className="text-base font-bold text-gray-700 mt-0.5">
-            Chatting with: <span className="text-indigo-600">{partner ? partner.username : 'Anonymous'}</span>
+          <h2 className="text-[10px] sm:text-xs uppercase tracking-widest font-extrabold text-indigo-400">Text Chat Room</h2>
+          <p className="text-sm font-bold text-zinc-200 mt-0.5">
+            Chatting with: <span className="text-indigo-400">{partner ? partner.username : 'Anonymous'}</span>
           </p>
         </div>
-        <p className="text-[10px] text-gray-400">Room: {chatRoomId}</p>
+        <p className="text-[10px] text-zinc-500">Room: {chatRoomId}</p>
       </div>
 
       <div
-        className="flex-1 overflow-y-auto bg-gray-50 p-4 rounded border border-gray-200 shadow-inner z-10"
+        className="flex-1 overflow-y-auto bg-white/5 border border-white/10 p-4 rounded-2xl shadow-inner z-10"
         ref={chatBoxRef}
         onScroll={handleScroll}
       >
         {messages.map((msg) => (
           <div key={msg.id} className="mb-3">
             <div
-              className={`p-2.5 rounded-xl max-w-xs text-sm shadow-sm ${
+              className={`p-3 rounded-xl max-w-xs text-xs sm:text-sm shadow-md ${
                 msg.self
-                  ? 'ml-auto bg-indigo-600 text-white rounded-tr-none'
+                  ? 'ml-auto bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-tr-none'
                   : msg.sender === 'system'
-                  ? 'text-center text-gray-400 text-xs bg-transparent shadow-none'
-                  : 'mr-auto bg-white text-gray-800 border border-gray-100 rounded-tl-none'
+                  ? 'text-center text-zinc-500 text-[10px] bg-transparent shadow-none'
+                  : 'mr-auto bg-white/10 text-zinc-100 border border-white/5 rounded-tl-none'
               }`}
             >
               {msg.content}
             </div>
             <div
               className={`text-[9px] mt-0.5 px-1 ${
-                msg.self ? 'text-right text-indigo-400' : 'text-left text-gray-400'
+                msg.self ? 'text-right text-indigo-400' : 'text-left text-zinc-500'
               }`}
             >
               {new Date(msg.timestamp).toLocaleTimeString([], {
@@ -323,12 +342,12 @@ export default function ChatClient() {
         ))}
 
         {typingUserId && typingUserId !== userId && (
-          <div className="text-xs text-indigo-500 italic mt-2 animate-pulse flex items-center gap-1">
+          <div className="text-xs text-indigo-400 italic mt-2 animate-pulse flex items-center gap-1">
             <span>Partner is typing</span>
             <span className="flex gap-0.5">
-              <span className="w-1 h-1 bg-indigo-500 rounded-full animate-bounce"></span>
-              <span className="w-1 h-1 bg-indigo-500 rounded-full animate-bounce delay-75"></span>
-              <span className="w-1 h-1 bg-indigo-500 rounded-full animate-bounce delay-150"></span>
+              <span className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce"></span>
+              <span className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce delay-75"></span>
+              <span className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce delay-150"></span>
             </span>
           </div>
         )}
@@ -336,9 +355,9 @@ export default function ChatClient() {
         <div ref={chatEndRef} />
       </div>
 
-      <div className="mt-4 flex items-center gap-2 z-10">
+      <div className="mt-4 flex flex-wrap sm:flex-nowrap items-center gap-2 z-10">
         <input
-          className="flex-1 border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+          className="flex-1 border border-white/10 bg-white/5 rounded-xl px-4 py-2.5 text-xs sm:text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent min-w-[200px]"
           placeholder="Type a message..."
           value={input}
           onChange={(e) => {
@@ -347,38 +366,40 @@ export default function ChatClient() {
           }}
           onKeyDown={(e) => e.key === 'Enter' && handleSend()}
         />
-        <button
-          onClick={handleSend}
-          className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl hover:bg-indigo-700 font-semibold text-sm transition-all shadow-sm"
-        >
-          Send
-        </button>
-        {partner && (
+        <div className="flex gap-2 w-full sm:w-auto justify-end mt-2 sm:mt-0">
           <button
-            onClick={handleAddFriend}
-            disabled={isFriendRequested}
-            className={`px-5 py-2.5 rounded-xl font-semibold text-sm transition-all border ${
-              isFriendRequested
-                ? 'bg-pink-50 border-pink-200 text-pink-500 cursor-not-allowed'
-                : 'bg-white border-gray-200 text-pink-500 hover:bg-pink-50 hover:border-pink-200'
-            }`}
+            onClick={handleSend}
+            className="bg-gradient-to-r from-indigo-500 to-purple-600 border border-indigo-500/20 text-white px-4 py-2.5 rounded-xl hover:from-indigo-600 hover:to-purple-700 font-bold text-xs sm:text-sm transition-all shadow-md active:scale-95 shrink-0"
           >
-            {isFriendRequested ? 'Friend Requested ❤️' : 'Add Friend ♡'}
+            Send
           </button>
-        )}
-        <button
-          onClick={handleSkip}
-          className="bg-emerald-600 text-white px-5 py-2.5 rounded-xl hover:bg-emerald-700 font-semibold text-sm transition-all shadow-sm"
-          title="Skip to next match (Spacebar)"
-        >
-          Skip
-        </button>
-        <button
-          onClick={handleEndChat}
-          className="bg-gray-100 text-gray-600 px-5 py-2.5 rounded-xl hover:bg-red-600 hover:text-white font-semibold text-sm transition-all border border-gray-200 hover:border-transparent"
-        >
-          End
-        </button>
+          {partner && (
+            <button
+              onClick={handleAddFriend}
+              disabled={isFriendRequested}
+              className={`px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all border shrink-0 ${
+                isFriendRequested
+                  ? 'bg-pink-500/20 border-pink-500/40 text-pink-300 cursor-not-allowed'
+                  : 'bg-white/5 border-white/10 text-pink-400 hover:bg-pink-500/20 hover:border-pink-500/30'
+              }`}
+            >
+              {isFriendRequested ? 'Friends ❤️' : 'Add Friend ♡'}
+            </button>
+          )}
+          <button
+            onClick={handleSkip}
+            className="bg-gradient-to-r from-amber-500 to-orange-600 border border-amber-500/20 text-white px-4 py-2.5 rounded-xl hover:from-amber-600 hover:to-orange-700 font-bold text-xs sm:text-sm transition-all shadow-md active:scale-95 shrink-0"
+            title="Skip to next match (Spacebar)"
+          >
+            Skip
+          </button>
+          <button
+            onClick={handleEndChat}
+            className="bg-white/5 border border-white/10 hover:border-rose-500/30 hover:bg-rose-500/20 text-zinc-400 hover:text-rose-400 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all shrink-0"
+          >
+            End
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -76,10 +76,12 @@ export default function Header() {
 
   return (
     <>
-      <header className="bg-white shadow-sm sticky top-0 z-50">
+      <header className="bg-zinc-950/40 backdrop-blur-md border-b border-white/10 sticky top-0 z-50 text-white">
         <div className="max-w-5xl mx-auto px-4 py-3 flex justify-between items-center">
           <div className="flex items-center gap-4">
-            <h1 className="text-xl font-bold text-indigo-600">Cashual Call</h1>
+            <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400">
+              Cashual Call
+            </h1>
             <LiveCounter />
           </div>
           <div>
@@ -90,7 +92,7 @@ export default function Header() {
                 {/* Notification Bell */}
                 <button
                   onClick={() => setIsRequestsModalOpen(true)}
-                  className="relative flex h-8 w-8 items-center justify-center bg-gray-50 border border-gray-200 text-gray-600 rounded-full hover:bg-gray-100 transition-all font-bold shadow-sm"
+                  className="relative flex h-8 w-8 items-center justify-center bg-white/5 border border-white/10 text-white rounded-full hover:bg-white/10 transition-all font-bold shadow-sm"
                   title="View Friend Requests"
                 >
                   <span className="text-sm">🔔</span>
@@ -101,13 +103,13 @@ export default function Header() {
                   )}
                 </button>
 
-                <span className="text-xs sm:text-sm text-gray-700 font-semibold hidden sm:inline">
+                <span className="text-xs sm:text-sm text-zinc-300 font-semibold hidden sm:inline">
                   👋 {user.username || user.email}
                 </span>
                 
                 <button
                   onClick={handleLogout}
-                  className="text-xs sm:text-sm font-bold text-red-500 hover:text-red-700 transition-colors"
+                  className="text-xs sm:text-sm font-bold text-rose-400 hover:text-rose-300 transition-colors"
                 >
                   Logout
                 </button>
@@ -115,7 +117,7 @@ export default function Header() {
             ) : (
               <button
                 onClick={() => dispatch(openAuthModal("login"))}
-                className="text-xs sm:text-sm font-bold text-blue-600 hover:text-blue-800 transition-colors"
+                className="text-xs sm:text-sm font-bold text-indigo-400 hover:text-indigo-300 transition-colors"
               >
                 Login / Signup
               </button>
