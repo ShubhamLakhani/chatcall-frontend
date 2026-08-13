@@ -6,6 +6,7 @@ import AuthModal from "~/components/auth/AuthModal";
 import { RootState } from "~/store";
 import { logout } from '~/store/slices/authSlice';
 import { openAuthModal } from "~/store/slices/modalSlice";
+import LiveCounter from "~/components/common/LiveCounter";
 
 export default function Header() {
   const dispatch = useDispatch();
@@ -21,7 +22,10 @@ export default function Header() {
     <>
       <header className="bg-white shadow-sm sticky top-0 z-50">
         <div className="max-w-5xl mx-auto px-4 py-3 flex justify-between items-center">
-          <h1 className="text-xl font-bold text-indigo-600">Cashual Call</h1>
+          <div className="flex items-center gap-4">
+            <h1 className="text-xl font-bold text-indigo-600">Cashual Call</h1>
+            <LiveCounter />
+          </div>
           <div>
             {user ? (
               <div className="flex items-center gap-4">

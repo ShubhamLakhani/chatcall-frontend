@@ -4,9 +4,10 @@ interface Props {
   isMuted: boolean;
   onMuteToggle: () => void;
   onEndCall: () => void;
+  onSkip?: () => void;
 }
 
-export default function CallControls({ isMuted, onMuteToggle, onEndCall }: Props) {
+export default function CallControls({ isMuted, onMuteToggle, onEndCall, onSkip }: Props) {
   return (
     <div className="flex justify-center gap-8 mb-20">
       <button
@@ -26,6 +27,16 @@ export default function CallControls({ isMuted, onMuteToggle, onEndCall }: Props
       >
         <span className="text-xl font-bold">⏹</span>
       </button>
+
+      {onSkip && (
+        <button
+          onClick={onSkip}
+          className="w-16 h-16 bg-indigo-600 text-white rounded-full shadow hover:bg-indigo-700 flex items-center justify-center"
+          title="Skip to next user (Space or Right Arrow)"
+        >
+          <span className="text-xl font-bold">⏭</span>
+        </button>
+      )}
     </div>
   );
 }
