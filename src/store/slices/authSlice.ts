@@ -11,6 +11,8 @@ interface AuthState {
     streakCount?: number;
     friends?: string[];
     friendRequests?: string[];
+    isVip?: boolean;
+    vipExpiresAt?: string | null;
   } | null;
   deviceInfo: GetResult | null; // Storing the fingerprint in the state
 }
@@ -42,8 +44,13 @@ const authSlice = createSlice({
         state.user.streakCount = action.payload.streakCount;
       }
     },
+    updateUser(state, action: PayloadAction<Partial<NonNullable<AuthState['user']>>>) {
+      if (state.user) {
+        state.user = { ...state.user, ...action.payload };
+      }
+    },
   },
 });
 
-export const { loginSuccess, logout, setDevice, updateRewards } = authSlice.actions;
+export const { loginSuccess, logout, setDevice, updateRewards, updateUser } = authSlice.actions;
 export default authSlice.reducer;

@@ -10,6 +10,7 @@ import { openAuthModal } from "~/store/slices/modalSlice";
 import LiveCounter from "~/components/common/LiveCounter";
 import UserBadges from "~/components/common/UserBadges";
 import FriendRequestsModal from "~/components/common/FriendRequestsModal";
+import CoinStoreModal from "~/components/common/CoinStoreModal";
 import { getSocket } from '~/libs/socket';
 
 export default function Header() {
@@ -18,6 +19,7 @@ export default function Header() {
   const user = useSelector((state: RootState) => state.auth.user);
   
   const [isRequestsModalOpen, setIsRequestsModalOpen] = useState(false);
+  const [isStoreOpen, setIsStoreOpen] = useState(false);
   const [pendingRequests, setPendingRequests] = useState<Array<{ _id: string; username: string }>>([]);
 
   // Restore authentication session from localStorage token on mount
@@ -33,6 +35,8 @@ export default function Header() {
               id: payload.id,
               email: payload.email,
               username: payload.email.split('@')[0],
+              coins: payload.coins,
+              isVip: payload.isVip,
             },
           })
         );
@@ -103,7 +107,7 @@ export default function Header() {
         <div className="max-w-5xl mx-auto px-4 py-3 flex justify-between items-center">
           <div className="flex items-center gap-4">
             <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400">
-              Cashual Call
+              PulseRoom
             </h1>
             <LiveCounter />
           </div>
@@ -111,6 +115,15 @@ export default function Header() {
             {user ? (
               <div className="flex items-center gap-3 sm:gap-4">
                 <UserBadges />
+                
+                {/* Clickable Coins balance pill */}
+                <button
+                  onClick={() => setIsStoreOpen(true)}
+                  className="flex items-center gap-1.5 bg-white/5 border border-white/10 text-amber-400 hover:text-amber-300 font-extrabold text-xs px-3 py-1 rounded-full shadow-sm hover:bg-white/10 transition-all cursor-pointer select-none"
+                  title="Open Store & VIP"
+                >
+                  🪙 {user.coins ?? 100}
+                </button>
                 
                 {/* Notification Bell */}
                 <button
@@ -150,6 +163,7 @@ export default function Header() {
       </header>
 
       {isAuthModalOpen && <AuthModal />}
+      <CoinStoreModal isOpen={isStoreOpen} onClose={() => setIsStoreOpen(false)} />
       
       <FriendRequestsModal
         isOpen={isRequestsModalOpen}
