@@ -3,17 +3,50 @@
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { useAppSelector } from '~/hooks/useAppSelector';
+import { useAppDispatch } from '~/hooks/useAppDispatch';
+import { loginSuccess } from '~/store/slices/authSlice';
 import { getSocket } from '~/libs/socket';
 import { RootState } from '~/store';
 
 export default function HomePage() {
   const router = useRouter();
+  const dispatch = useAppDispatch();
   const socketRef = useRef<ReturnType<typeof getSocket>>(getSocket());
   const [isMatching, setIsMatching] = useState(false);
   const [matchType, setMatchType] = useState<'voice-call' | 'chat' | 'video-call' | null>(null);
   const deviceInfo = useAppSelector((state: RootState) => state.auth.deviceInfo);
 
   console.log('Device Info:', deviceInfo);
+
+  // Retrieve token query parameters from Google OAuth redirects
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const searchParams = new URLSearchParams(window.location.search);
+      const token = searchParams.get('token');
+      if (token) {
+        localStorage.setItem('token', token);
+        try {
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          dispatch(
+            loginSuccess({
+              token,
+              user: {
+                id: payload.id,
+                email: payload.email,
+                username: payload.email.split('@')[0],
+              },
+            })
+          );
+          // Clean token query parameters from browser history
+          const url = new URL(window.location.href);
+          url.searchParams.delete('token');
+          window.history.replaceState({}, '', url.pathname + url.search);
+        } catch (e) {
+          console.error("Failed to parse Google OAuth token:", e);
+        }
+      }
+    }
+  }, [dispatch]);
 
   useEffect(() => {
     const socket = socketRef.current;

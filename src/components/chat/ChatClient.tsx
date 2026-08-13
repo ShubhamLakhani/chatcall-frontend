@@ -153,6 +153,7 @@ export default function ChatClient() {
     if (!chatRoomId) return;
 
     const handleReceiveMessage = (data: { content: string; sender: string }) => {
+      if (data.sender === userId) return; // Skip duplicate self-message
       setMessages((prev) => [
         ...prev,
         {
@@ -169,7 +170,7 @@ export default function ChatClient() {
     return () => {
       socket.off('receive-message', handleReceiveMessage);
     };
-  }, [chatRoomId]);
+  }, [chatRoomId, userId]);
 
   useEffect(() => {
     scrollToBottom();

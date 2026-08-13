@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import AuthModal from "~/components/auth/AuthModal";
 import { RootState } from "~/store";
-import { logout, updateRewards } from '~/store/slices/authSlice';
+import { loginSuccess, logout, updateRewards } from '~/store/slices/authSlice';
 import { openAuthModal } from "~/store/slices/modalSlice";
 import LiveCounter from "~/components/common/LiveCounter";
 import UserBadges from "~/components/common/UserBadges";
@@ -19,6 +19,29 @@ export default function Header() {
   
   const [isRequestsModalOpen, setIsRequestsModalOpen] = useState(false);
   const [pendingRequests, setPendingRequests] = useState<Array<{ _id: string; username: string }>>([]);
+
+  // Restore authentication session from localStorage token on mount
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token && !user) {
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        dispatch(
+          loginSuccess({
+            token,
+            user: {
+              id: payload.id,
+              email: payload.email,
+              username: payload.email.split('@')[0],
+            },
+          })
+        );
+      } catch (e) {
+        console.error("Failed to restore session token:", e);
+        localStorage.removeItem('token');
+      }
+    }
+  }, [user, dispatch]);
 
   // Socket listeners for friend requests and rewards updates
   useEffect(() => {

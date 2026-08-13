@@ -9,6 +9,8 @@ interface Props {
   isFriendAdded?: boolean;
   isVideoEnabled?: boolean;
   onVideoToggle?: () => void;
+  isChatOpen?: boolean;
+  onChatToggle?: () => void;
 }
 
 export default function CallControls({
@@ -20,6 +22,8 @@ export default function CallControls({
   isFriendAdded,
   isVideoEnabled = false,
   onVideoToggle,
+  isChatOpen = false,
+  onChatToggle,
 }: Props) {
   return (
     <div className="flex justify-center items-center gap-6 mb-12">
@@ -48,6 +52,21 @@ export default function CallControls({
           title={isVideoEnabled ? 'Turn off camera' : 'Turn on camera'}
         >
           <span className="text-xl font-bold">{isVideoEnabled ? '📹' : '🚫'}</span>
+        </button>
+      )}
+
+      {/* Chat Toggle */}
+      {onChatToggle && (
+        <button
+          onClick={onChatToggle}
+          className={`w-14 h-14 rounded-full shadow-lg flex items-center justify-center border transition-all ${
+            isChatOpen
+              ? 'bg-indigo-500/20 border-indigo-500/40 text-indigo-400 hover:bg-indigo-500/30'
+              : 'bg-white/5 border-white/10 text-zinc-300 hover:bg-white/10 hover:text-white'
+          }`}
+          title={isChatOpen ? 'Hide Chat' : 'Show Chat'}
+        >
+          <span className="text-xl font-bold">💬</span>
         </button>
       )}
 

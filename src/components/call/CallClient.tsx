@@ -11,6 +11,14 @@ import { useWebRTC } from '~/hooks/useWebRTC';
 import { getSocket } from '~/libs/socket';
 import { RootState } from '~/store';
 
+interface ChatMessage {
+  id: string;
+  content: string;
+  sender: string;
+  timestamp: string;
+  self?: boolean;
+}
+
 export default function CallClient() {
   const searchParams = useSearchParams();
   const chatRoomId = searchParams.get('room') || '';
@@ -44,6 +52,12 @@ export default function CallClient() {
 
   const deviceInfo = useAppSelector((state: RootState) => state.auth.deviceInfo);
 
+  // In-Call Chat Overlay States
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatInput, setChatInput] = useState('');
+  const chatEndRef = useRef<HTMLDivElement | null>(null);
+
   // Video element references
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
@@ -62,6 +76,13 @@ export default function CallClient() {
     isInitiator,
     enableVideo: moduleType === 'video-call',
   });
+
+  // Scroll chat drawer to bottom on new messages
+  useEffect(() => {
+    if (isChatOpen) {
+      chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [chatMessages, isChatOpen]);
 
   // Track initial call start time and join room when established
   useEffect(() => {
@@ -121,6 +142,28 @@ export default function CallClient() {
     };
   }, []);
 
+  // Listen for in-call chat messages
+  useEffect(() => {
+    const handleReceiveMessage = (data: { content: string; sender: string }) => {
+      if (data.sender === socket.id) return; // Skip duplicate self-message
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now().toString(),
+          content: data.content,
+          sender: data.sender,
+          timestamp: new Date().toISOString(),
+          self: false,
+        },
+      ]);
+    };
+
+    socket.on('receive-message', handleReceiveMessage);
+    return () => {
+      socket.off('receive-message', handleReceiveMessage);
+    };
+  }, [socket]);
+
   // Evaluates call length and requests rewards
   const evaluateCallReward = () => {
     if (callStartTime) {
@@ -141,6 +184,7 @@ export default function CallClient() {
     setPartner(null);
     setIsFriendRequested(false);
     setIcebreaker('');
+    setChatMessages([]);
     setIsSearching(true);
     socket.emit('find-match', { moduleType, deviceId: deviceInfo?.visitorId });
   };
@@ -158,6 +202,7 @@ export default function CallClient() {
       setIcebreaker(data.icebreaker || '');
       setPartner(data.partner || null);
       setIsFriendRequested(false);
+      setChatMessages([]);
       setCallStartTime(Date.now());
       router.replace(`/call?room=${data.chatRoomId}&initiator=${data.initiator}&type=${moduleType}`);
     };
@@ -183,6 +228,7 @@ export default function CallClient() {
       setPartner(null);
       setIsFriendRequested(false);
       setIcebreaker('');
+      setChatMessages([]);
       if (isAutoCall) {
         setIsSearching(true);
         socket.emit('find-match', { moduleType, deviceId: deviceInfo?.visitorId });
@@ -211,6 +257,28 @@ export default function CallClient() {
     if (chatRoomId) {
       socket.emit('request-new-icebreaker', { chatRoomId });
     }
+  };
+
+  const handleSendChatMessage = () => {
+    if (!chatInput.trim() || !chatRoomId) return;
+
+    socket.emit('send-message', {
+      chatRoomId,
+      content: chatInput.trim(),
+    });
+
+    setChatMessages((prev) => [
+      ...prev,
+      {
+        id: Date.now().toString(),
+        content: chatInput.trim(),
+        sender: socket.id || 'me',
+        timestamp: new Date().toISOString(),
+        self: true,
+      },
+    ]);
+
+    setChatInput('');
   };
 
   // Global Keyboard Shortcuts
@@ -347,6 +415,58 @@ export default function CallClient() {
         )}
       </div>
 
+      {/* Side Slide-In Chat Drawer Panel */}
+      {isChatOpen && (
+        <div className="absolute right-0 top-0 bottom-0 w-80 bg-zinc-950/80 border-l border-white/10 backdrop-blur-xl shadow-2xl z-30 flex flex-col justify-between p-4 animate-fade-in">
+          <div className="flex justify-between items-center border-b border-white/10 pb-2 mb-3">
+            <h3 className="text-sm font-bold text-indigo-400">In-Call Chat</h3>
+            <button
+              onClick={() => setIsChatOpen(false)}
+              className="text-zinc-400 hover:text-white text-sm font-bold w-6 h-6 flex items-center justify-center rounded hover:bg-white/5"
+            >
+              ✕
+            </button>
+          </div>
+          
+          <div className="flex-1 overflow-y-auto space-y-3 mb-3 pr-1">
+            {chatMessages.map((msg) => (
+              <div key={msg.id} className="flex flex-col">
+                <div
+                  className={`p-2.5 rounded-xl text-xs max-w-[80%] shadow-md ${
+                    msg.self
+                      ? 'ml-auto bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-tr-none'
+                      : 'mr-auto bg-white/10 text-zinc-100 rounded-tl-none border border-white/5'
+                  }`}
+                >
+                  {msg.content}
+                </div>
+                <span className={`text-[8px] text-zinc-500 mt-0.5 ${msg.self ? 'text-right px-1' : 'text-left px-1'}`}>
+                  {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </span>
+              </div>
+            ))}
+            <div ref={chatEndRef} />
+          </div>
+          
+          <div className="flex gap-2 border-t border-white/10 pt-3">
+            <input
+              type="text"
+              value={chatInput}
+              onChange={(e) => setChatInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSendChatMessage()}
+              placeholder="Type message..."
+              className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+            />
+            <button
+              onClick={handleSendChatMessage}
+              className="bg-gradient-to-r from-indigo-500 to-purple-600 border border-indigo-500/20 text-white px-3 py-2 rounded-xl text-xs font-bold hover:from-indigo-600 hover:to-purple-700 active:scale-95 transition-all"
+            >
+              Send
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-col items-center gap-3 w-full max-w-xs z-10">
         <CallControls
           isMuted={isMuted}
@@ -357,6 +477,8 @@ export default function CallClient() {
           isFriendAdded={isFriendRequested}
           isVideoEnabled={isVideoEnabled}
           onVideoToggle={moduleType === 'video-call' ? toggleVideo : undefined}
+          isChatOpen={isChatOpen}
+          onChatToggle={() => setIsChatOpen((prev) => !prev)}
         />
         <label className="flex items-center gap-2 cursor-pointer text-[10px] font-bold text-zinc-400 bg-white/5 px-3 py-1.5 rounded-full border border-white/5 backdrop-blur-sm shadow-sm hover:scale-105 transition-transform select-none uppercase tracking-wider">
           <input

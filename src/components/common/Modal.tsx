@@ -29,21 +29,25 @@ export default function Modal({
   if (!isOpen) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
       <div
-        className={`relative w-full ${widthClass} bg-white rounded-lg shadow-lg p-6`}
+        className={`relative w-full ${widthClass} bg-zinc-900/90 border border-white/10 text-white rounded-3xl shadow-2xl p-6 backdrop-blur-xl`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Close button */}
         <button
           onClick={onClose}
-          className="absolute top-3 right-3 text-gray-500 hover:text-gray-700 text-xl"
+          className="absolute top-3.5 right-3.5 text-zinc-400 hover:text-white transition-colors text-xl font-bold"
         >
           &times;
         </button>
 
         {/* Optional title */}
-        {title && <h2 className="text-lg font-semibold mb-4">{title}</h2>}
+        {title && (
+          <h2 className="text-xl font-extrabold mb-5 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400">
+            {title}
+          </h2>
+        )}
 
         {/* Modal Content */}
         <div>{children}</div>
