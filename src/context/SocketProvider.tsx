@@ -2,8 +2,10 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Socket } from 'socket.io-client';
+import { useSelector } from 'react-redux';
 import { useDeviceFingerprint } from '~/hooks/useDeviceFingerprint';
 import { initSocket } from '~/libs/socket';
+import { RootState } from '~/store';
 import CaptchaModal from '~/components/auth/CaptchaModal';
 
 type SocketContextType = {
@@ -19,11 +21,31 @@ export const useSocket = () => useContext(SocketContext);
 export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
   const [socket, setSocket] = useState<Socket | null>(null);
   const [showCaptcha, setShowCaptcha] = useState(false);
+  
+  // Resolve browser tab device fingerprint info
+  const deviceInfo = useSelector((state: RootState) => state.auth.deviceInfo);
   useDeviceFingerprint();
 
   useEffect(() => {
+    if (!deviceInfo) return;
+
     const s = initSocket();
-    console.log('Socket initialized:', s.id);
+
+    // Assign unique deviceId query dynamically to the socket configuration
+    s.io.opts.query = {
+      deviceId: deviceInfo.visitorId,
+    };
+
+    // Force connection to trigger connection handler with query parameters.
+    // If already connected, perform a re-handshake (disconnect and reconnect) to submit new query params.
+    if (s.connected) {
+      console.log('[SOCKET] Re-handshaking with deviceId:', deviceInfo.visitorId);
+      s.disconnect().connect();
+    } else {
+      s.connect();
+    }
+
+    console.log('[SOCKET] Initialized connection for device:', deviceInfo.visitorId);
     setSocket(s);
 
     // Intercept socket emits to cache the last find-match payload
@@ -35,12 +57,12 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
       return originalEmit.call(s, event, ...args);
     };
 
-    s.on('captcha-required', () => {
+    const handleCaptchaRequired = () => {
       console.log('[SOCKET] Rate limit hit. CAPTCHA verification required.');
       setShowCaptcha(true);
-    });
+    };
 
-    s.on('verify-captcha-response', (res: { success: boolean; error?: string }) => {
+    const handleCaptchaResponse = (res: { success: boolean; error?: string }) => {
       if (res.success) {
         console.log('[SOCKET] CAPTCHA successfully verified. Dismissing modal.');
         setShowCaptcha(false);
@@ -53,13 +75,18 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
       } else {
         console.error('[SOCKET] CAPTCHA verification failed:', res.error);
       }
-    });
+    };
+
+    s.on('captcha-required', handleCaptchaRequired);
+    s.on('verify-captcha-response', handleCaptchaResponse);
 
     return () => {
-      s.off('captcha-required');
-      s.off('verify-captcha-response');
+      console.log('[SOCKET] Disconnecting socket on cleanup/refresh...');
+      s.disconnect();
+      s.off('captcha-required', handleCaptchaRequired);
+      s.off('verify-captcha-response', handleCaptchaResponse);
     };
-  }, []);
+  }, [deviceInfo]);
 
   const handleCaptchaSolved = (token: string) => {
     if (socket) {

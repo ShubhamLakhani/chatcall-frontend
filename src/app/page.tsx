@@ -43,12 +43,17 @@ export default function HomePage() {
       setIsMatching(true);
     });
 
-    socket.on('matched', ({ chatRoomId, initiator, moduleType }) => {
+    socket.on('matched', ({ chatRoomId, initiator, moduleType, icebreaker, partner }) => {
       console.log('Matched with a user:', chatRoomId, initiator, moduleType);
+      const partnerId = partner?._id || '';
+      const partnerName = partner?.username || '';
+      const encodedIcebreaker = encodeURIComponent(icebreaker || '');
+      const encodedPartnerName = encodeURIComponent(partnerName);
+
       if (moduleType === 'chat') {
-        router.push(`/chat?room=${chatRoomId}&initiator=${initiator}`);
+        router.push(`/chat?room=${chatRoomId}&initiator=${initiator}&partnerId=${partnerId}&partnerName=${encodedPartnerName}&icebreaker=${encodedIcebreaker}`);
       } else {
-        router.push(`/call?room=${chatRoomId}&initiator=${initiator}`);
+        router.push(`/call?room=${chatRoomId}&initiator=${initiator}&partnerId=${partnerId}&partnerName=${encodedPartnerName}&icebreaker=${encodedIcebreaker}`);
       }
     });
 

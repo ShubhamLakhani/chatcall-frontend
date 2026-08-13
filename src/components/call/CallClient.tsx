@@ -15,6 +15,10 @@ export default function CallClient() {
   const searchParams = useSearchParams();
   const chatRoomId = searchParams.get('room') || '';
   const isInitiator = searchParams.get('initiator') === 'true';
+  const initialPartnerId = searchParams.get('partnerId') || '';
+  const initialPartnerName = searchParams.get('partnerName') || '';
+  const initialIcebreaker = searchParams.get('icebreaker') || '';
+
   const userId = ''; // Placeholder if you have auth
   const router = useRouter();
   const socket = getSocket();
@@ -22,9 +26,16 @@ export default function CallClient() {
   const [isAutoCall, setIsAutoCall] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   
-  // New States for Gamification & Friend System
-  const [icebreaker, setIcebreaker] = useState('');
-  const [partner, setPartner] = useState<{ _id: string; username: string } | null>(null);
+  // Initialize states using routed query variables to support initial match loading
+  const [icebreaker, setIcebreaker] = useState(initialIcebreaker ? decodeURIComponent(initialIcebreaker) : '');
+  const [partner, setPartner] = useState<{ _id: string; username: string } | null>(
+    initialPartnerId
+      ? {
+          _id: initialPartnerId,
+          username: initialPartnerName ? decodeURIComponent(initialPartnerName) : 'Anonymous',
+        }
+      : null
+  );
   const [isFriendRequested, setIsFriendRequested] = useState(false);
   const [callStartTime, setCallStartTime] = useState<number | null>(null);
 
@@ -45,6 +56,27 @@ export default function CallClient() {
       setCallStartTime(null);
     }
   }, [chatRoomId]);
+
+  // Interaction fallback to handle autoplay policy restrictions on incoming audio stream
+  useEffect(() => {
+    const resumeAudio = () => {
+      if (remoteAudioRef.current && remoteStream) {
+        remoteAudioRef.current.play()
+          .then(() => {
+            console.log('[AUDIO] Autoplay resumed on user interaction');
+            window.removeEventListener('click', resumeAudio);
+            window.removeEventListener('touchstart', resumeAudio);
+          })
+          .catch((err) => console.warn('[AUDIO] Failed to resume on interaction:', err));
+      }
+    };
+    window.addEventListener('click', resumeAudio);
+    window.addEventListener('touchstart', resumeAudio);
+    return () => {
+      window.removeEventListener('click', resumeAudio);
+      window.removeEventListener('touchstart', resumeAudio);
+    };
+  }, [remoteStream, remoteAudioRef]);
 
   // Evaluates call length and requests rewards
   const evaluateCallReward = () => {

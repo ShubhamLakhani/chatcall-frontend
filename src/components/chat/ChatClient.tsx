@@ -21,6 +21,10 @@ interface Message {
 export default function ChatClient() {
   const searchParams = useSearchParams();
   const chatRoomId = searchParams.get('room') || '';
+  const initialPartnerId = searchParams.get('partnerId') || '';
+  const initialPartnerName = searchParams.get('partnerName') || '';
+  const initialIcebreaker = searchParams.get('icebreaker') || '';
+
   const router = useRouter();
   const socket = getSocket();
   const deviceInfo = useAppSelector((state: RootState) => state.auth.deviceInfo);
@@ -30,9 +34,16 @@ export default function ChatClient() {
   const [hasMore, setHasMore] = useState(true);
   const [isSearching, setIsSearching] = useState(false);
 
-  // New States for Gamification & Friend System
-  const [icebreaker, setIcebreaker] = useState('');
-  const [partner, setPartner] = useState<{ _id: string; username: string } | null>(null);
+  // Initialize states using routed query variables to support initial match loading
+  const [icebreaker, setIcebreaker] = useState(initialIcebreaker ? decodeURIComponent(initialIcebreaker) : '');
+  const [partner, setPartner] = useState<{ _id: string; username: string } | null>(
+    initialPartnerId
+      ? {
+          _id: initialPartnerId,
+          username: initialPartnerName ? decodeURIComponent(initialPartnerName) : 'Anonymous',
+        }
+      : null
+  );
   const [isFriendRequested, setIsFriendRequested] = useState(false);
 
   const chatEndRef = useRef<HTMLDivElement | null>(null);
