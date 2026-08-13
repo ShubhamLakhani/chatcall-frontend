@@ -63,10 +63,11 @@ export default function CallClient() {
     enableVideo: moduleType === 'video-call',
   });
 
-  // Track initial call start time when room is established
+  // Track initial call start time and join room when established
   useEffect(() => {
     if (chatRoomId) {
       setCallStartTime(Date.now());
+      socket.emit('join-room', { chatRoomId });
     } else {
       setCallStartTime(null);
     }

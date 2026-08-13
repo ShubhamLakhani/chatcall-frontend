@@ -86,6 +86,13 @@ export default function ChatClient() {
     }
   };
 
+  // Join the Socket.IO room channel on mount/room changes
+  useEffect(() => {
+    if (chatRoomId) {
+      socket.emit('join-room', { chatRoomId });
+    }
+  }, [chatRoomId]);
+
   // Instant skip method
   const handleSkip = () => {
     console.log('[SKIP] Skipping current chat...');
