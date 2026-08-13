@@ -6,6 +6,8 @@ import { getSocket } from '~/libs/socket';
 import { useTypingIndicator } from '~/hooks/useTypingIndicator';
 import { useSeenTracking } from '~/hooks/useSeenTracking';
 import IcebreakerPrompt from '~/components/call/IcebreakerPrompt';
+import { useAppSelector } from '~/hooks/useAppSelector';
+import { RootState } from '~/store';
 
 interface Message {
   id: string;
@@ -21,6 +23,7 @@ export default function ChatClient() {
   const chatRoomId = searchParams.get('room') || '';
   const router = useRouter();
   const socket = getSocket();
+  const deviceInfo = useAppSelector((state: RootState) => state.auth.deviceInfo);
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -82,7 +85,7 @@ export default function ChatClient() {
     setIsFriendRequested(false);
     setIcebreaker('');
     setIsSearching(true);
-    socket.emit('find-match', { moduleType: 'chat' });
+    socket.emit('find-match', { moduleType: 'chat', deviceId: deviceInfo?.visitorId });
   };
 
   // Listen for match events

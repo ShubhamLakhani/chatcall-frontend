@@ -67,7 +67,7 @@ export default function CallClient() {
     setIsFriendRequested(false);
     setIcebreaker('');
     setIsSearching(true);
-    socket.emit('find-match', { moduleType: 'voice-call' });
+    socket.emit('find-match', { moduleType: 'voice-call', deviceId: deviceInfo?.visitorId });
   };
 
   // Listen for match outcomes
