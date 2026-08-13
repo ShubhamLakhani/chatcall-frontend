@@ -6,7 +6,10 @@ import CallControls from '~/components/call/CallControls';
 import CallTimer from '~/components/call/CallTimer';
 import AudioVisualizer from '~/components/call/AudioVisualizer';
 import IcebreakerPrompt from '~/components/call/IcebreakerPrompt';
+import GiftMenuModal from '~/components/call/GiftMenuModal';
 import { useAppSelector } from '~/hooks/useAppSelector';
+import { useAppDispatch } from '~/hooks/useAppDispatch';
+import { updateUser } from '~/store/slices/authSlice';
 import { useWebRTC } from '~/hooks/useWebRTC';
 import { getSocket } from '~/libs/socket';
 import { RootState } from '~/store';
@@ -33,9 +36,20 @@ export default function CallClient() {
   const userId = ''; // Placeholder if you have auth
   const router = useRouter();
   const socket = getSocket();
+  const dispatch = useAppDispatch();
   
   const [isAutoCall, setIsAutoCall] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
+
+  // Floating Gift States
+  interface FloatingGift {
+    id: string;
+    emoji: string;
+    x: number;
+  }
+  const [floatingGifts, setFloatingGifts] = useState<FloatingGift[]>([]);
+  const [giftToast, setGiftToast] = useState<{ senderName: string; giftName: string; giftEmoji: string } | null>(null);
+  const [isGiftMenuOpen, setIsGiftMenuOpen] = useState(false);
   
   // Initialize states using routed query variables to support initial match loading
   const [icebreaker, setIcebreaker] = useState(initialIcebreaker ? decodeURIComponent(initialIcebreaker) : '');
@@ -177,6 +191,62 @@ export default function CallClient() {
       socket.off('receive-message', handleReceiveMessage);
     };
   }, [socket]);
+
+  // Listen for in-call virtual gifts
+  useEffect(() => {
+    const handleReceiveGift = (data: {
+      giftId: string;
+      giftEmoji: string;
+      giftName: string;
+      senderName: string;
+      senderCoins: number;
+      recipientCoins: number;
+      senderSocketId: string;
+      recipientSocketId: string;
+    }) => {
+      const id = Math.random().toString(36).substring(7);
+      const x = Math.floor(Math.random() * 80) + 10; // 10% to 90%
+      setFloatingGifts((prev) => [...prev, { id, emoji: data.giftEmoji, x }]);
+      setTimeout(() => {
+        setFloatingGifts((prev) => prev.filter((g) => g.id !== id));
+      }, 4000);
+
+      setGiftToast({
+        senderName: data.senderName,
+        giftName: data.giftName,
+        giftEmoji: data.giftEmoji,
+      });
+      setTimeout(() => {
+        setGiftToast(null);
+      }, 3000);
+
+      const isMeSender = socket.id === data.senderSocketId;
+      const newBalance = isMeSender ? data.senderCoins : data.recipientCoins;
+      dispatch(updateUser({ coins: newBalance }));
+    };
+
+    const handleGiftError = (data: { message: string }) => {
+      alert(`Gift error: ${data.message}`);
+    };
+
+    socket.on('receive-gift', handleReceiveGift);
+    socket.on('gift-error', handleGiftError);
+
+    return () => {
+      socket.off('receive-gift', handleReceiveGift);
+      socket.off('gift-error', handleGiftError);
+    };
+  }, [socket, dispatch]);
+
+  const handleSendGift = (giftId: string, giftCost: number, giftEmoji: string, giftName: string) => {
+    socket.emit('send-gift', {
+      chatRoomId,
+      giftId,
+      giftCost,
+      giftEmoji,
+      giftName,
+    });
+  };
 
   // Evaluates call length and requests rewards
   const evaluateCallReward = () => {
@@ -372,6 +442,42 @@ export default function CallClient() {
 
   return (
     <div className="flex-1 flex flex-col h-[calc(100vh-4rem)] max-h-[calc(100vh-4rem)] overflow-hidden w-full relative bg-zinc-950 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-zinc-900 via-zinc-950 to-black text-white">
+      
+      {/* Floating animation keyframes styles */}
+      <style dangerouslySetInnerHTML={{ __html: `
+        @keyframes giftFloat {
+          0% { transform: translateY(0) scale(0.5); opacity: 0; }
+          10% { opacity: 1; transform: translateY(-10vh) scale(1.2) rotate(10deg); }
+          50% { transform: translateY(-45vh) scale(1.4) rotate(-10deg); }
+          90% { opacity: 1; }
+          100% { transform: translateY(-90vh) scale(0.8) rotate(0deg); opacity: 0; }
+        }
+        .animate-gift-float {
+          animation: giftFloat 3.5s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+        }
+      `}} />
+
+      {/* Floating Gift Canvas overlay */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden z-40">
+        {floatingGifts.map((gift) => (
+          <div
+            key={gift.id}
+            style={{ left: `${gift.x}%` }}
+            className="absolute bottom-0 text-5xl animate-gift-float opacity-0 select-none"
+          >
+            {gift.emoji}
+          </div>
+        ))}
+      </div>
+
+      {/* Gift Toast Notification Banner */}
+      {giftToast && (
+        <div className="absolute top-24 left-1/2 -translate-x-1/2 bg-gradient-to-r from-purple-600 to-indigo-600 border border-purple-500/30 text-white font-extrabold text-xs px-4 py-2.5 rounded-full shadow-2xl z-40 animate-bounce flex items-center gap-2">
+          <span>{giftToast.giftEmoji}</span>
+          <span>{giftToast.senderName} sent a {giftToast.giftName}!</span>
+        </div>
+      )}
+
       {/* Flex Row (Video Stage + Chat Drawer) */}
       <div className="flex-1 flex w-full h-full min-h-0 overflow-hidden relative">
         
@@ -455,6 +561,7 @@ export default function CallClient() {
                 });
               }}
               unreadCount={unreadCount}
+              onGiftClick={() => setIsGiftMenuOpen(true)}
             />
             <label className="flex items-center gap-2 cursor-pointer text-[10px] font-bold text-zinc-400 bg-white/5 px-3 py-1.5 rounded-full border border-white/5 backdrop-blur-sm shadow-sm hover:scale-105 transition-transform select-none uppercase tracking-wider">
               <input
@@ -525,6 +632,12 @@ export default function CallClient() {
       </div>
 
       <audio ref={remoteAudioRef} autoPlay playsInline style={{ display: 'none' }} />
+
+      <GiftMenuModal
+        isOpen={isGiftMenuOpen}
+        onClose={() => setIsGiftMenuOpen(false)}
+        onSendGift={handleSendGift}
+      />
     </div>
   );
 }

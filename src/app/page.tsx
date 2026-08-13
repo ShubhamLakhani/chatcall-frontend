@@ -7,6 +7,7 @@ import { useAppDispatch } from '~/hooks/useAppDispatch';
 import { loginSuccess, updateRewards } from '~/store/slices/authSlice';
 import { getSocket } from '~/libs/socket';
 import { RootState } from '~/store';
+import CoinStoreModal from '~/components/common/CoinStoreModal';
 
 export default function HomePage() {
   const router = useRouter();
@@ -14,6 +15,7 @@ export default function HomePage() {
   const socketRef = useRef<ReturnType<typeof getSocket>>(getSocket());
 
   const [isMatching, setIsMatching] = useState(false);
+  const [isStoreOpen, setIsStoreOpen] = useState(false);
   const [selectedMode, setSelectedMode] = useState<'video-call' | 'voice-call' | 'chat'>('video-call');
 
   // Matchmaking Filters & Self-Attributes
@@ -168,9 +170,12 @@ export default function HomePage() {
           </div>
           <div className="flex items-center gap-3">
             {user && (
-              <div className="text-xs font-semibold text-amber-400 bg-white/5 border border-white/10 px-3 py-1 rounded-full">
+              <button
+                onClick={() => setIsStoreOpen(true)}
+                className="text-xs font-semibold text-amber-400 bg-white/5 border border-white/10 px-3 py-1 rounded-full hover:bg-white/10 transition-all cursor-pointer shadow-sm animate-fade-in"
+              >
                 🪙 {user.coins ?? 100} Coins
-              </div>
+              </button>
             )}
             <span className="text-[10px] font-bold text-rose-400 bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 rounded uppercase">
               18+ Safety Enforcement
@@ -511,6 +516,7 @@ export default function HomePage() {
         </div>
       </footer>
 
+      <CoinStoreModal isOpen={isStoreOpen} onClose={() => setIsStoreOpen(false)} />
     </div>
   );
 }
