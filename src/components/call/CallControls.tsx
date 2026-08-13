@@ -5,9 +5,11 @@ interface Props {
   onMuteToggle: () => void;
   onEndCall: () => void;
   onSkip?: () => void;
+  onAddFriend?: () => void;
+  isFriendAdded?: boolean;
 }
 
-export default function CallControls({ isMuted, onMuteToggle, onEndCall, onSkip }: Props) {
+export default function CallControls({ isMuted, onMuteToggle, onEndCall, onSkip, onAddFriend, isFriendAdded }: Props) {
   return (
     <div className="flex justify-center gap-8 mb-20">
       <button
@@ -35,6 +37,21 @@ export default function CallControls({ isMuted, onMuteToggle, onEndCall, onSkip 
           title="Skip to next user (Space or Right Arrow)"
         >
           <span className="text-xl font-bold">⏭</span>
+        </button>
+      )}
+
+      {onAddFriend && (
+        <button
+          onClick={onAddFriend}
+          disabled={isFriendAdded}
+          className={`w-16 h-16 rounded-full shadow flex items-center justify-center border transition-all ${
+            isFriendAdded
+              ? 'bg-pink-100 border-pink-300 text-pink-600 cursor-not-allowed'
+              : 'bg-white border-gray-300 hover:bg-gray-100 text-pink-500'
+          }`}
+          title={isFriendAdded ? 'Friend Request Sent' : 'Add Friend'}
+        >
+          <span className="text-xl font-bold">{isFriendAdded ? '❤️' : '♡'}</span>
         </button>
       )}
     </div>

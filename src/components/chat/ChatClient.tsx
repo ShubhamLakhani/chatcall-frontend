@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { getSocket } from '~/libs/socket';
 import { useTypingIndicator } from '~/hooks/useTypingIndicator';
 import { useSeenTracking } from '~/hooks/useSeenTracking';
+import IcebreakerPrompt from '~/components/call/IcebreakerPrompt';
 
 interface Message {
   id: string;
@@ -25,6 +26,11 @@ export default function ChatClient() {
   const [input, setInput] = useState('');
   const [hasMore, setHasMore] = useState(true);
   const [isSearching, setIsSearching] = useState(false);
+
+  // New States for Gamification & Friend System
+  const [icebreaker, setIcebreaker] = useState('');
+  const [partner, setPartner] = useState<{ _id: string; username: string } | null>(null);
+  const [isFriendRequested, setIsFriendRequested] = useState(false);
 
   const chatEndRef = useRef<HTMLDivElement | null>(null);
   const chatBoxRef = useRef<HTMLDivElement | null>(null);
@@ -72,16 +78,27 @@ export default function ChatClient() {
     socket.emit('leave-room', { chatRoomId });
     setMessages([]);
     setInput('');
+    setPartner(null);
+    setIsFriendRequested(false);
+    setIcebreaker('');
     setIsSearching(true);
     socket.emit('find-match', { moduleType: 'chat' });
   };
 
   // Listen for match events
   useEffect(() => {
-    const handleMatched = ({ chatRoomId: newRoomId, initiator }: { chatRoomId: string; initiator: boolean }) => {
-      console.log('[MATCHED] Found new chat partner:', newRoomId);
+    const handleMatched = (data: {
+      chatRoomId: string;
+      initiator: boolean;
+      icebreaker?: string;
+      partner?: { _id: string; username: string };
+    }) => {
+      console.log('[MATCHED] Found new chat partner:', data.chatRoomId);
       setIsSearching(false);
-      router.replace(`/chat?room=${newRoomId}&initiator=${initiator}`);
+      setIcebreaker(data.icebreaker || '');
+      setPartner(data.partner || null);
+      setIsFriendRequested(false);
+      router.replace(`/chat?room=${data.chatRoomId}&initiator=${data.initiator}`);
     };
 
     const handleWaiting = () => {
@@ -157,6 +174,9 @@ export default function ChatClient() {
   useEffect(() => {
     const handleLeaveRoom = () => {
       console.log('[ROOM] Partner left chat.');
+      setPartner(null);
+      setIsFriendRequested(false);
+      setIcebreaker('');
       router.push('/');
     };
 
@@ -165,6 +185,16 @@ export default function ChatClient() {
       socket.off('leave-room', handleLeaveRoom);
     };
   }, [chatRoomId, router]);
+
+  // Handle friend requests
+  const handleAddFriend = () => {
+    if (partner) {
+      console.log(`[FRIEND] Sending friend request to User ID: ${partner._id}`);
+      socket.emit('send-friend-request', { targetUserId: partner._id });
+      setIsFriendRequested(true);
+      alert('Friend request sent! ❤️');
+    }
+  };
 
   // Global Keyboard Shortcuts
   useEffect(() => {
@@ -232,14 +262,22 @@ export default function ChatClient() {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-white px-4 py-6">
-      <div className="flex justify-between items-center border-b pb-3 mb-3">
-        <h2 className="text-lg font-bold text-gray-800">Text Chat Room</h2>
+    <div className="flex flex-col h-screen bg-white px-4 py-6 relative overflow-hidden">
+      {/* Conversation Icebreaker Prompts */}
+      <IcebreakerPrompt prompt={icebreaker} />
+
+      <div className="flex justify-between items-center border-b pb-3 mb-3 z-10">
+        <div className="text-left">
+          <h2 className="text-sm uppercase tracking-widest font-bold text-indigo-400/80">Text Chat Room</h2>
+          <p className="text-base font-bold text-gray-700 mt-0.5">
+            Chatting with: <span className="text-indigo-600">{partner ? partner.username : 'Anonymous'}</span>
+          </p>
+        </div>
         <p className="text-[10px] text-gray-400">Room: {chatRoomId}</p>
       </div>
 
       <div
-        className="flex-1 overflow-y-auto bg-gray-50 p-4 rounded border border-gray-200 shadow-inner"
+        className="flex-1 overflow-y-auto bg-gray-50 p-4 rounded border border-gray-200 shadow-inner z-10"
         ref={chatBoxRef}
         onScroll={handleScroll}
       >
@@ -284,7 +322,7 @@ export default function ChatClient() {
         <div ref={chatEndRef} />
       </div>
 
-      <div className="mt-4 flex items-center gap-2">
+      <div className="mt-4 flex items-center gap-2 z-10">
         <input
           className="flex-1 border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
           placeholder="Type a message..."
@@ -297,13 +335,26 @@ export default function ChatClient() {
         />
         <button
           onClick={handleSend}
-          className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl hover:bg-indigo-700 font-semibold text-sm transition-all"
+          className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl hover:bg-indigo-700 font-semibold text-sm transition-all shadow-sm"
         >
           Send
         </button>
+        {partner && (
+          <button
+            onClick={handleAddFriend}
+            disabled={isFriendRequested}
+            className={`px-5 py-2.5 rounded-xl font-semibold text-sm transition-all border ${
+              isFriendRequested
+                ? 'bg-pink-50 border-pink-200 text-pink-500 cursor-not-allowed'
+                : 'bg-white border-gray-200 text-pink-500 hover:bg-pink-50 hover:border-pink-200'
+            }`}
+          >
+            {isFriendRequested ? 'Friend Requested ❤️' : 'Add Friend ♡'}
+          </button>
+        )}
         <button
           onClick={handleSkip}
-          className="bg-emerald-600 text-white px-5 py-2.5 rounded-xl hover:bg-emerald-700 font-semibold text-sm transition-all"
+          className="bg-emerald-600 text-white px-5 py-2.5 rounded-xl hover:bg-emerald-700 font-semibold text-sm transition-all shadow-sm"
           title="Skip to next match (Spacebar)"
         >
           Skip

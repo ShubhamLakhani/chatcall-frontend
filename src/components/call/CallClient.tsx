@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import CallControls from '~/components/call/CallControls';
 import CallTimer from '~/components/call/CallTimer';
 import AudioVisualizer from '~/components/call/AudioVisualizer';
+import IcebreakerPrompt from '~/components/call/IcebreakerPrompt';
 import { useAppSelector } from '~/hooks/useAppSelector';
 import { useWebRTC } from '~/hooks/useWebRTC';
 import { getSocket } from '~/libs/socket';
@@ -17,8 +18,16 @@ export default function CallClient() {
   const userId = ''; // Placeholder if you have auth
   const router = useRouter();
   const socket = getSocket();
+  
   const [isAutoCall, setIsAutoCall] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
+  
+  // New States for Gamification & Friend System
+  const [icebreaker, setIcebreaker] = useState('');
+  const [partner, setPartner] = useState<{ _id: string; username: string } | null>(null);
+  const [isFriendRequested, setIsFriendRequested] = useState(false);
+  const [callStartTime, setCallStartTime] = useState<number | null>(null);
+
   const deviceInfo = useAppSelector((state: RootState) => state.auth.deviceInfo);
 
   const { isMuted, toggleMute, remoteAudioRef, remoteStream } = useWebRTC({
@@ -28,20 +37,54 @@ export default function CallClient() {
     enableVideo: false,
   });
 
+  // Track initial call start time when room is established
+  useEffect(() => {
+    if (chatRoomId) {
+      setCallStartTime(Date.now());
+    } else {
+      setCallStartTime(null);
+    }
+  }, [chatRoomId]);
+
+  // Evaluates call length and requests rewards
+  const evaluateCallReward = () => {
+    if (callStartTime) {
+      const durationSeconds = Math.floor((Date.now() - callStartTime) / 1000);
+      console.log(`[REWARD] Evaluating call length: ${durationSeconds} seconds.`);
+      if (durationSeconds >= 60) {
+        socket.emit('reward-completed-call', { callDuration: durationSeconds });
+      }
+      setCallStartTime(null);
+    }
+  };
+
   // Handle instant skip action
   const handleSkip = () => {
     console.log('[SKIP] Skipping current call...');
+    evaluateCallReward();
     socket.emit('leave-room', { chatRoomId });
+    setPartner(null);
+    setIsFriendRequested(false);
+    setIcebreaker('');
     setIsSearching(true);
     socket.emit('find-match', { moduleType: 'voice-call' });
   };
 
   // Listen for match outcomes
   useEffect(() => {
-    const handleMatched = ({ chatRoomId: newRoomId, initiator }: { chatRoomId: string; initiator: boolean }) => {
-      console.log('[MATCHED] Found new voice partner:', newRoomId);
+    const handleMatched = (data: {
+      chatRoomId: string;
+      initiator: boolean;
+      icebreaker?: string;
+      partner?: { _id: string; username: string };
+    }) => {
+      console.log('[MATCHED] Found new voice partner:', data.chatRoomId);
       setIsSearching(false);
-      router.replace(`/call?room=${newRoomId}&initiator=${initiator}`);
+      setIcebreaker(data.icebreaker || '');
+      setPartner(data.partner || null);
+      setIsFriendRequested(false);
+      setCallStartTime(Date.now());
+      router.replace(`/call?room=${data.chatRoomId}&initiator=${data.initiator}`);
     };
 
     const handleWaiting = () => {
@@ -61,6 +104,10 @@ export default function CallClient() {
   useEffect(() => {
     const handleLeaveRoom = () => {
       console.log('[ROOM] Partner left call.');
+      evaluateCallReward();
+      setPartner(null);
+      setIsFriendRequested(false);
+      setIcebreaker('');
       if (isAutoCall) {
         setIsSearching(true);
         socket.emit('find-match', { moduleType: 'voice-call', deviceId: deviceInfo?.visitorId });
@@ -73,7 +120,17 @@ export default function CallClient() {
     return () => {
       socket.off('leave-room', handleLeaveRoom);
     };
-  }, [chatRoomId, isAutoCall, deviceInfo, router]);
+  }, [chatRoomId, isAutoCall, deviceInfo, callStartTime, router]);
+
+  // Handle sending friend request
+  const handleAddFriend = () => {
+    if (partner) {
+      console.log(`[FRIEND] Sending friend request to User ID: ${partner._id}`);
+      socket.emit('send-friend-request', { targetUserId: partner._id });
+      setIsFriendRequested(true);
+      alert('Friend request sent! ❤️');
+    }
+  };
 
   // Global Keyboard Shortcuts
   useEffect(() => {
@@ -94,7 +151,7 @@ export default function CallClient() {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [chatRoomId]);
+  }, [chatRoomId, callStartTime]);
 
   // Mobile Swipe Gestures
   useEffect(() => {
@@ -119,13 +176,14 @@ export default function CallClient() {
       window.removeEventListener('touchstart', handleTouchStart);
       window.removeEventListener('touchend', handleTouchEnd);
     };
-  }, [chatRoomId]);
+  }, [chatRoomId, callStartTime]);
 
   const handleAutoCall = () => {
     setIsAutoCall((prev) => !prev);
   };
 
   const handleEndCall = () => {
+    evaluateCallReward();
     socket.emit('leave-room', { chatRoomId });
     router.push('/');
   };
@@ -150,25 +208,33 @@ export default function CallClient() {
   }
 
   return (
-    <div className="flex flex-col justify-between items-center h-screen bg-indigo-50 px-4 py-6">
-      <div className="flex flex-col items-center mt-10">
-        <h2 className="text-sm uppercase tracking-widest font-bold text-gray-400">In a Voice Call</h2>
-        <p className="text-xs text-gray-500 mt-1">Room ID: {chatRoomId}</p>
+    <div className="flex flex-col justify-between items-center h-screen bg-indigo-50 px-4 py-6 relative overflow-hidden">
+      {/* Floating Icebreaker starter */}
+      <IcebreakerPrompt prompt={icebreaker} />
+
+      <div className="flex flex-col items-center mt-10 z-10">
+        <h2 className="text-sm uppercase tracking-widest font-bold text-indigo-400/80">In a Voice Call</h2>
+        <p className="text-base font-bold text-gray-700 mt-1">
+          Chatting with: <span className="text-indigo-600">{partner ? partner.username : 'Anonymous'}</span>
+        </p>
+        <p className="text-[10px] text-gray-400 mt-1">Room: {chatRoomId}</p>
       </div>
 
-      <div className="flex-1 flex flex-col justify-center items-center">
+      <div className="flex-1 flex flex-col justify-center items-center z-10">
         <CallTimer active={true} />
         <AudioVisualizer stream={remoteStream} />
       </div>
 
-      <div className="flex flex-col items-center gap-4 w-full max-w-xs">
+      <div className="flex flex-col items-center gap-4 w-full max-w-xs z-10">
         <CallControls
           isMuted={isMuted}
           onMuteToggle={toggleMute}
           onEndCall={handleEndCall}
           onSkip={handleSkip}
+          onAddFriend={handleAddFriend}
+          isFriendAdded={isFriendRequested}
         />
-        <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-gray-500 mb-6 bg-white px-3 py-1.5 rounded-full border border-gray-200 shadow-sm">
+        <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-gray-500 mb-6 bg-white px-3 py-1.5 rounded-full border border-gray-200 shadow-sm hover:scale-105 transition-transform select-none">
           <input
             type="checkbox"
             onChange={handleAutoCall}

@@ -7,6 +7,10 @@ interface AuthState {
     id: string;
     email: string;
     username: string;
+    coins?: number;
+    streakCount?: number;
+    friends?: string[];
+    friendRequests?: string[];
   } | null;
   deviceInfo: GetResult | null; // Storing the fingerprint in the state
 }
@@ -32,8 +36,14 @@ const authSlice = createSlice({
     setDevice(state, action: PayloadAction<GetResult | null>) {
       state.deviceInfo = action.payload;
     },
+    updateRewards(state, action: PayloadAction<{ coins: number; streakCount: number }>) {
+      if (state.user) {
+        state.user.coins = action.payload.coins;
+        state.user.streakCount = action.payload.streakCount;
+      }
+    },
   },
 });
 
-export const { loginSuccess, logout, setDevice } = authSlice.actions;
+export const { loginSuccess, logout, setDevice, updateRewards } = authSlice.actions;
 export default authSlice.reducer;
